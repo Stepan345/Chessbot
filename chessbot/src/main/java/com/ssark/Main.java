@@ -4,15 +4,13 @@ package com.ssark;
  */
 import java.util.Arrays;
 import java.util.ArrayList;
+import java.lang.Long;
 public class Main {
     
     public static void main(String[] args) {
         BoardHelper.preCompMoveData();
-        
         createBoard_TEST();
         findLegalMoves_TEST();
-        
-
     }
     private static void createBoard_TEST(){
         boolean[] out = new boolean[3];
@@ -37,11 +35,14 @@ public class Main {
         boolean[] out = new boolean[1];
         
         int[] board = BoardHelper.createBoard("rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR w - - 0 1");
+        System.out.println(Long.toBinaryString(BoardHelper.generateAttackedPositions(board, 1)));
         long startTime = System.nanoTime();
         ArrayList<Move> moves = BoardHelper.findLegalMoves(board, 1);
         long endTime = System.nanoTime();
+        System.out.println(moves.size());
         out[0] = (moves.size() == 20);
         System.out.println("findLegalMoves test0 " + ((out[0])?"Passed":"Failed"));
         System.out.println((endTime-startTime)/1_000_000.0 + "ms");
     }
+    
 }

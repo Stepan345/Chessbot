@@ -185,10 +185,10 @@ public class BoardHelper{
                 case 16://00001 = Rook
                     legalMoves.addAll(generateSlidingMoves(i, squareValue, board));
                     break;
-                case 18://00101 = Queen
+                case 20://00101 = Queen
                     legalMoves.addAll(generateSlidingMoves(i, squareValue, board));
                     break;
-                case 22://00111 = King
+                case 24://00111 = King
                     break;
             }
             
@@ -198,6 +198,51 @@ public class BoardHelper{
         }
         return legalMoves;
         
+    }
+    public static long generateAttackedPositions(int[] board,int colorToMove){
+        long bitmap = 0;
+        for(int i=0;i<board.length;i++){
+            //Loops through every square on the board
+            int squareValue = board[i];
+            //Checks if square contains a piece
+            if(squareValue == 0)continue;
+
+            int color = ((squareValue & 3) == 1)?1:-1;//11000 = 1
+            if(color == colorToMove)continue;
+
+            int file = i % 8;
+
+            int piece = squareValue & 28;//00111 = 28
+            switch(piece){
+                case 4://00100 = Pawn
+                    //capture left
+                    if(file != 0){
+                        bitmap = bitmap | (long)Math.pow(2,i+((color == 1)?7:-9));
+                    }
+                    //capture right
+                    if(file != 7){
+                        bitmap = bitmap | (long)Math.pow(2,i+((color == 1)?9:-7));
+                    }
+                    break;
+                case 8://00010 = Bishop
+                    bitmap = bitmap | generateSlidingMoveBitmap(i, squareValue, board);
+                    break;
+                case 12://00110 = Knight
+                    bitmap = bitmap | generateKnightMovesBitmap(i, squareValue, board);
+                    break;
+                case 16://00001 = Rook
+                    bitmap = bitmap | generateSlidingMoveBitmap(i, squareValue, board);
+                    break;
+                case 20://00101 = Queen
+                    bitmap = bitmap | generateSlidingMoveBitmap(i, squareValue, board);
+                    break;
+                case 24://00111 = King
+                    bitmap = bitmap | generateSlidingMoveBitmap(i, squareValue, board);
+                    break;
+            }
+        
+        }
+        return bitmap;
     }
     private static ArrayList<Move> generateSlidingMoves(int square, int piece, int[] board){
         ArrayList<Move> moves = new ArrayList<Move>();
@@ -212,11 +257,28 @@ public class BoardHelper{
                 if(targetPieceColor == (piece & 3))break;//break if friendly
 
                 moves.add(new Move(square,target));
-
                 if((targetPiece & 28) > 0)break;//Stop on capture
             }
         }
         return moves;
+    }
+    private static long generateSlidingMoveBitmap(int square,int piece,int[] board){
+        long map = 0b0L;
+        int startDir = ((piece & 28) == 8)?4:0;
+        int endDir = ((piece & 28) == 16)?4:8;
+
+        for(int dir = startDir; dir < endDir; dir++){
+            for(int dist = 0;dist < squaresToEdge[square][dir];dist++){
+                if((piece & 28)==24 && dist > 0)break;
+                int target  = square + directionalOffsets[dir] * (dist+1);
+                int targetPiece = board[target];
+                int targetPieceColor = targetPiece & 3;
+                map = map | (long)Math.pow(2,target);
+                if(targetPieceColor == (piece & 3))break;
+                if((targetPiece & 28) > 0)break;
+            }
+        }
+        return map;
     }
     private static ArrayList<Move> generateKnightMoves(int square, int piece, int[] board){
         ArrayList<Move> moves = new ArrayList<Move>();
@@ -230,5 +292,14 @@ public class BoardHelper{
             moves.add(new Move(square,target));
         }
         return moves;
+    }
+    private static long generateKnightMovesBitmap(int square, int piece, int[] board){
+        long map = 0b0L;
+        for(int dir = 0;dir<8;dir++){
+            if(!knightEdgeCheck[square][dir])continue;
+            int target = square + knightOffsets[dir];
+            map = map | (long)Math.pow(2,target);
+        }
+        return map;
     }
 }
