@@ -1,8 +1,5 @@
 package com.ssark;
-
-import java.lang.Math;
 import java.util.ArrayList;
-import java.lang.Character;
 public class BoardHelper{
     public BoardHelper(){
         preCompMoveData();
@@ -53,6 +50,38 @@ public class BoardHelper{
         }
 
         return board;
+    }
+    public static int[] makeMove(int[] board, Move move){
+        int[] newBoard = board.clone();
+        int startSquare = move.getStartSquare();
+        int endSquare = move.getEndSquare();
+        int piece = board[startSquare];
+        int color = ((piece & 3)==1)?1:-1;
+
+        if(move.isCastle()){
+            int targetSquare = 2 * (int)Math.signum(endSquare-startSquare);
+            int rookTargetSquare = targetSquare - (1 * (int)Math.signum(endSquare-startSquare));
+            
+            newBoard[targetSquare] = piece | 32;
+            newBoard[startSquare] = 0;
+            newBoard[rookTargetSquare] = board[endSquare] | 32;
+            newBoard[endSquare] = 0;
+
+            return newBoard;
+        }
+        if((piece&28) == 4 && Math.abs(endSquare - startSquare) == 16){
+            //add phantom pawn
+            newBoard[startSquare + (8*color)] = -(4|(piece&3));
+        }
+        if(move.isEnPassant()){
+            newBoard[endSquare - (8*color)] = 0;
+        }
+        if((piece&28) ==24 || (piece&28) == 16){
+            piece |= 32;
+        }
+        newBoard[startSquare] = 0;
+        newBoard[endSquare] = piece;
+        return newBoard;
     }
     private static int[] directionalOffsets = {8,-8,-1,1,7,-7,9,-9};
     private static int[][] squaresToEdge = new int[64][8];
@@ -140,12 +169,13 @@ public class BoardHelper{
     }
     public static ArrayList<Move> findLegalMoves(int[] board,int colorToMove){
         ArrayList<Move> legalMoves = new ArrayList<Move>();
+        ArrayList<Integer> phantomPawnList = new ArrayList<Integer>();
         for(int i=0;i<board.length;i++){
             //Loops through every square on the board
             int squareValue = board[i];
             //Checks if square contains a piece
             if(squareValue == 0)continue;
-
+            if(squareValue < 0)phantomPawnList.add(i);
             int color = ((squareValue & 3) == 1)?1:-1;//11000 = 1
             if(color != colorToMove)continue;
 
@@ -157,23 +187,42 @@ public class BoardHelper{
                 case 4://00100 = Pawn
                     //if there is no piece in front of you && you are not on the last rank
                     if(board[i+(8*color)] <= 0 && rank != ((color == 1)?7:0)){
-                        legalMoves.add(new Move(i,i+(8*color)));
-                        if(rank == ((color == 1)?1:6) && board[i+(16*color)] <= 0){
-                            legalMoves.add(new Move(i,i+(16*color)));
+                        Move move = new Move(i,i+(8*color));
+                        long captureMap = generateAttackedPositions(makeMove(board,move),squareValue & 3);
+                        long kingMap = 1L << getKingPosition(board,squareValue & 3);
+
+                        if((captureMap & kingMap) == 0){
+                            legalMoves.add(move);
+                            if(rank == ((color == 1)?1:6) && board[i+(16*color)] <= 0){
+                                legalMoves.add(new Move(i,i+(16*color)));
+                            }
                         }
+                        
                     }
                     //capture and en-passant
                     //capture left
                     if(file != 0 && (Math.abs(board[i+((color == 1)?7:-9)]) & 3) != (squareValue&3) && (Math.abs(board[i+((color == 1)?7:-9)]) & 3) != 0){
                         boolean enPassant = false;
                         if(board[i+((color == 1)?7:-9)] < 0)enPassant = true;
-                        legalMoves.add(new Move(i,i+((color == 1)?7:-9),enPassant));
+                        Move move = new Move(i,i+((color == 1)?7:-9),enPassant);
+                        long captureMap = generateAttackedPositions(makeMove(board,move),squareValue & 3);
+                        long kingMap = 1L << getKingPosition(board,squareValue & 3);
+
+                        if((captureMap & kingMap) == 0){
+                            legalMoves.add(move);
+                        }
                     }
                     //capture right
                     if(file != 7 && (Math.abs(board[i+((color == 1)?9:-7)]) & 3) != (squareValue&3) && (Math.abs(board[i+((color == 1)?9:-7)]) & 3) != 0){
                         boolean enPassant = false;
                         if(board[i+((color == 1)?9:-7)] < 0)enPassant = true;
-                        legalMoves.add(new Move(i,i+((color == 1)?9:-7),enPassant));
+                        Move move = new Move(i,i+((color == 1)?9:-7),enPassant);
+                        long captureMap = generateAttackedPositions(makeMove(board,move),squareValue & 3);
+                        long kingMap = 1L << getKingPosition(board,squareValue & 3);
+
+                        if((captureMap & kingMap) == 0){
+                            legalMoves.add(move);
+                        }
                     }
                     break;
                 case 8://00010 = Bishop
@@ -188,17 +237,19 @@ public class BoardHelper{
                 case 20://00101 = Queen
                     legalMoves.addAll(generateSlidingMoves(i, squareValue, board));
                     break;
-                case 24://00111 = King
+                case 24://00011 = King
+                    legalMoves.addAll(generateKingMoves(i,squareValue,board));
                     break;
             }
-            
-            
-            
-            
+    
+        }
+        for (Integer integer : phantomPawnList) {
+            board[integer] = 0;
         }
         return legalMoves;
         
     }
+    
     public static long generateAttackedPositions(int[] board,int colorToMove){
         long bitmap = 0;
         for(int i=0;i<board.length;i++){
@@ -217,11 +268,11 @@ public class BoardHelper{
                 case 4://00100 = Pawn
                     //capture left
                     if(file != 0){
-                        bitmap = bitmap | (long)Math.pow(2,i+((color == 1)?7:-9));
+                        bitmap = bitmap | 1L << i+((color == 1)?7:-9);
                     }
                     //capture right
                     if(file != 7){
-                        bitmap = bitmap | (long)Math.pow(2,i+((color == 1)?9:-7));
+                        bitmap = bitmap | 1L << i+((color == 1)?9:-7);
                     }
                     break;
                 case 8://00010 = Bishop
@@ -244,6 +295,48 @@ public class BoardHelper{
         }
         return bitmap;
     }
+    private static ArrayList<Move> generateKingMoves(int square, int piece, int[] board){
+        ArrayList<Move> moves = new ArrayList<Move>();
+        long checkMap = generateAttackedPositions(board,((piece & 3) == 1)?1:-1);
+        for(int dir = 0; dir < 8; dir++){
+            if(squaresToEdge[square][dir] == 0)continue;
+            int target = square + directionalOffsets[dir];
+            if((board[target] & 3) == (piece & 3))continue;
+
+            long kingMap = 1L << target;
+            if((kingMap & checkMap) != 0)continue;
+
+            moves.add(new Move(square,target));
+            
+        }
+        if((piece & 32) == 0){
+            int rookRight = board[square + 3];
+            int rookLeft = board[square - 4];
+            long rightCheck = 3L << (((piece & 3)==1)?5:61);
+            long leftCheck = 3L << (((piece & 3)==1)?1:57);
+            //right castle
+            if(
+                (rookRight & 28) == 16 && 
+                (rookRight & 32) == 0 && 
+                (checkMap & rightCheck) == 0 &&
+                board[square+1] == 0 &&
+                board[square+2] == 0
+            ){
+                moves.add(new Move(true,square,square+3));
+            }
+            if(
+                (rookLeft & 28) == 16 &&
+                (rookLeft & 32)==0 &&
+                (checkMap & leftCheck) == 0 &&
+                board[square-1] == 0 &&
+                board[square-2] == 0 &&
+                board[square-3] == 0
+            ){
+                moves.add(new Move(true,square,square-4));
+            }
+        }
+        return moves;
+    }
     private static ArrayList<Move> generateSlidingMoves(int square, int piece, int[] board){
         ArrayList<Move> moves = new ArrayList<Move>();
         int startDir = ((piece & 28) == 8)?4:0;
@@ -256,7 +349,15 @@ public class BoardHelper{
                 int targetPieceColor = targetPiece & 3;
                 if(targetPieceColor == (piece & 3))break;//break if friendly
 
-                moves.add(new Move(square,target));
+                Move move = new Move(square,target);
+                long captureMap = generateAttackedPositions(makeMove(board,move),piece & 3);
+                long kingMap = 1L << getKingPosition(board,piece & 3);
+
+                if((captureMap & kingMap) != 0){
+                    continue;
+                }
+
+                moves.add(move);
                 if((targetPiece & 28) > 0)break;//Stop on capture
             }
         }
@@ -273,7 +374,7 @@ public class BoardHelper{
                 int target  = square + directionalOffsets[dir] * (dist+1);
                 int targetPiece = board[target];
                 int targetPieceColor = targetPiece & 3;
-                map = map | (long)Math.pow(2,target);
+                map = map | 1L << target;
                 if(targetPieceColor == (piece & 3))break;
                 if((targetPiece & 28) > 0)break;
             }
@@ -287,18 +388,34 @@ public class BoardHelper{
             int target = square + knightOffsets[dir];
             int targetPiece = board[target];
             int targetPieceColor = targetPiece & 3;
-            if(targetPieceColor == (piece & 3))break;
+            if(targetPieceColor == (piece & 3))continue;
 
-            moves.add(new Move(square,target));
+            Move move = new Move(square,target);
+            long captureMap = generateAttackedPositions(makeMove(board,move),piece & 3);
+            long kingMap = 1L << getKingPosition(board,piece & 3);
+
+            if((captureMap & kingMap) != 0){
+                continue;
+            }
+            
+            moves.add(move);
         }
         return moves;
+    }
+    private static int getKingPosition(int[] board, int color){
+        for(int i = 0;i<board.length;i++){
+            if(board[i] == (24 | color)){
+                return i;
+            }
+        }
+        return -1;
     }
     private static long generateKnightMovesBitmap(int square, int piece, int[] board){
         long map = 0b0L;
         for(int dir = 0;dir<8;dir++){
             if(!knightEdgeCheck[square][dir])continue;
             int target = square + knightOffsets[dir];
-            map = map | (long)Math.pow(2,target);
+            map = map | 1L << target;
         }
         return map;
     }
