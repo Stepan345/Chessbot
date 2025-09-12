@@ -33,10 +33,13 @@ public class Main {
     private static void findLegalMoves_TEST(){
         boolean[] out = new boolean[1];
         
-        int[] board = BoardHelper.createBoard("3k4/8/8/8/8/8/P6P/R2K3R w - - 0 1");
+        int[] board = BoardHelper.createBoard("k7/2pbnrq1/8/8/8/2RRRRR1/8/3K3R w - - 0 1");
         //System.out.println(BoardHelper.generateAttackedPositions(board, 1));
         long startTime = System.nanoTime();
         ArrayList<Move> moves = BoardHelper.findLegalMoves(board, 1);
+        // for(int i = 0; i < 1000;i++){
+        //     BoardHelper.findLegalMoves(board, 1);
+        // }
         long endTime = System.nanoTime();
         
         out[0] = (moves.size() == 16);
