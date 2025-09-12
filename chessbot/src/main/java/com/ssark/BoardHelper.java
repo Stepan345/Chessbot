@@ -1,8 +1,6 @@
 package com.ssark;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.HashMap;
-import java.util.Comparator;
 public class BoardHelper{
     
 
@@ -233,7 +231,6 @@ public class BoardHelper{
                 if((generateAttackedPositions(checkTestBoardA, colorToMove*-1) & (1L << kingA)) != 0)valA += 75;
                 if((generateAttackedPositions(checkTestBoardB, colorToMove*-1) & (1L << kingB)) != 0)valB += 75;
 
-                
                 return valB - valA;
             });
         }
@@ -251,7 +248,7 @@ public class BoardHelper{
         //if there is no piece in front of you && you are not on the last rank
         if(board[square+(8*color)] <= 0 && rank != ((color == 1)?7:0)){
             Move move = new Move(square,square+(8*color));
-            long captureMap = generateAttackedPositions(makeMove(board,move),piece & 3);
+            long captureMap = generateAttackedPositions(makeMove(board,move),color);
             long kingMap = 1L << getKingPosition(board,piece & 3);
 
             if((captureMap & kingMap) == 0){
@@ -268,7 +265,7 @@ public class BoardHelper{
             boolean enPassant = false;
             if(board[square+((color == 1)?7:-9)] < 0)enPassant = true;
             Move move = new Move(square,square+((color == 1)?7:-9),enPassant);
-            long captureMap = generateAttackedPositions(makeMove(board,move),piece & 3);
+            long captureMap = generateAttackedPositions(makeMove(board,move),color);
             long kingMap = 1L << getKingPosition(board,piece & 3);
 
             if((captureMap & kingMap) == 0){
@@ -280,7 +277,7 @@ public class BoardHelper{
             boolean enPassant = false;
             if(board[square+((color == 1)?9:-7)] < 0)enPassant = true;
             Move move = new Move(square,square+((color == 1)?9:-7),enPassant);
-            long captureMap = generateAttackedPositions(makeMove(board,move),piece & 3);
+            long captureMap = generateAttackedPositions(makeMove(board,move),color);
             long kingMap = 1L << getKingPosition(board,piece & 3);
 
             if((captureMap & kingMap) == 0){
@@ -388,7 +385,7 @@ public class BoardHelper{
                 if(targetPieceColor == (piece & 3))break;//break if friendly
 
                 Move move = new Move(square,target);
-                long captureMap = generateAttackedPositions(makeMove(board,move),piece & 3);
+                long captureMap = generateAttackedPositions(makeMove(board,move),((piece & 3)==1)?1:-1);
                 long kingMap = 1L << getKingPosition(board,piece & 3);
 
                 if((captureMap & kingMap) != 0){
@@ -429,7 +426,7 @@ public class BoardHelper{
             if(targetPieceColor == (piece & 3))continue;
 
             Move move = new Move(square,target);
-            long captureMap = generateAttackedPositions(makeMove(board,move),piece & 3);
+            long captureMap = generateAttackedPositions(makeMove(board,move),((piece & 3)==1)?1:-1);
             long kingMap = 1L << getKingPosition(board,piece & 3);
 
             if((captureMap & kingMap) != 0){

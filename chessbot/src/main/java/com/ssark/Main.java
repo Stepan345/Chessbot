@@ -1,15 +1,17 @@
 package com.ssark;
+import java.util.ArrayList;
 /**
  * Main class of the Java program my name stephan i stinky++.
  */
 import java.util.Arrays;
-import java.util.ArrayList;
 public class Main {
     
     public static void main(String[] args) {
         BoardHelper.preCompMoveData();
         createBoard_TEST();
         findLegalMoves_TEST();
+
+        findBestMove();
     }
     private static void createBoard_TEST(){
         boolean[] out = new boolean[3];
@@ -33,10 +35,10 @@ public class Main {
     private static void findLegalMoves_TEST(){
         boolean[] out = new boolean[1];
         
-        int[] board = BoardHelper.createBoard("k7/2pbnrq1/8/8/8/2RRRRR1/8/3K3R w - - 0 1");
+        int[] board = BoardHelper.createBoard("rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR");
         //System.out.println(BoardHelper.generateAttackedPositions(board, 1));
         long startTime = System.nanoTime();
-        ArrayList<Move> moves = BoardHelper.findLegalMoves(board, 1);
+        ArrayList<Move> moves = BoardHelper.findLegalMoves(board, -1);
         // for(int i = 0; i < 1000;i++){
         //     BoardHelper.findLegalMoves(board, 1);
         // }
@@ -47,6 +49,10 @@ public class Main {
         System.out.println("Found " + moves.size() + "/" + "16 legal moves");
         System.out.println((endTime-startTime)/1_000_000.0 + "ms");
     }
-    
+    private static void findBestMove(){
+        Computer comp = new Computer();
+        int[] board = BoardHelper.createBoard("rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR");
+        System.out.println(comp.findBestMove(board, 3, 1));
+    }
 }
 
