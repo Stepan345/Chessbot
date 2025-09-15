@@ -11,7 +11,7 @@ public class Main {
         createBoard_TEST();
         findLegalMoves_TEST();
 
-        findBestMove();
+        //findBestMove();
     }
     private static void createBoard_TEST(){
         boolean[] out = new boolean[3];
@@ -50,9 +50,23 @@ public class Main {
         System.out.println((endTime-startTime)/1_000_000.0 + "ms");
     }
     private static void findBestMove(){
-        Computer comp = new Computer();
-        int[] board = BoardHelper.createBoard("rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR");
-        System.out.println(comp.findBestMove(board, 3, 1));
+        Computer comp1 = new Computer();
+        Computer comp2 = new Computer();
+        int[] board1 = BoardHelper.createBoard("rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR");
+        long startTime = System.nanoTime();
+        MoveEval bestMove = comp1.findBestMove(board1, 4, 1,new Move(0, 0));
+        long endTime = System.nanoTime();
+
+        for (int i = 0; i < 20; i++) {
+            MoveEval bestMove1 = comp1.findBestMove(board1, 4, 1, null);
+            board1 = BoardHelper.makeMove(board1, bestMove1.move);
+            MoveEval bestMove2 = comp2.findBestMove(board1, 4, -1, null);
+            board1 = BoardHelper.makeMove(board1, bestMove1.move);
+            System.out.println(bestMove1.move.getStartSquare());
+        }
+        System.out.println(bestMove.move.getStartSquare());
+        //System.out.println(comp1.counter);
+        System.out.println((endTime-startTime)/1_000_000.0 + "ms");
     }
 }
 

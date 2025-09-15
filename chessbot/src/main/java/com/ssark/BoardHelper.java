@@ -184,7 +184,10 @@ public class BoardHelper{
             int squareValue = board[i];
             //Checks if square contains a piece
             if(squareValue == 0)continue;
-            if(squareValue < 0)phantomPawnList.add(i);
+            if(squareValue < 0){
+                phantomPawnList.add(i);
+                continue;
+            }
             int color = ((squareValue & 3) == 1)?1:-1;//11000 = 3
             if(color != colorToMove)continue;
 
@@ -292,7 +295,7 @@ public class BoardHelper{
             //Loops through every square on the board
             int squareValue = board[i];
             //Checks if square contains a piece
-            if(squareValue == 0)continue;
+            if(squareValue <= 0)continue;
 
             int color = ((squareValue & 3) == 1)?1:-1;//11000 = 1
             if(color == colorToMove)continue;

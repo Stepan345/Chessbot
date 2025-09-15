@@ -18,6 +18,12 @@ public class Move{
         this.endSquare = rook;
         this.castle = true;
     }
+    public Move(Move parent){
+        this.startSquare = parent.getStartSquare();
+        this.endSquare = parent.getEndSquare();
+        this.enPassant = parent.isEnPassant();
+        this.castle = parent.isCastle();
+    }
     public int getStartSquare(){
         return startSquare;
     }
