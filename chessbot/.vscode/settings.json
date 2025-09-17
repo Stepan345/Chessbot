@@ -1,0 +1,8 @@
+{
+    "java.project.sourcePaths": ["src/main/java/com/ssark"],
+    "java.project.outputPath": "target/classes/com/ssark",
+    "java.project.referencedLibraries": [
+        "lib/**/*.jar"
+    ],
+    "java.configuration.updateBuildConfiguration": "interactive"
+}

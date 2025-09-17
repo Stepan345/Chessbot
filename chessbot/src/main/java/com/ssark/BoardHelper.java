@@ -15,41 +15,90 @@ public class BoardHelper{
     public static int[] createBoard(String fen){
         int[] board = new int[64];
         String onlyFen = fen.split(" ")[0];
-        char[] parsedFen = onlyFen.toCharArray();
-        int i = 63;
-        for(char item: parsedFen){
-            if(item == '/')continue;
-            if(Character.isDigit(item)){
-                int parsedInt = item - 48;
-                i-=parsedInt;
-            }else{
-                boolean isWhite = Character.isUpperCase(item);
-                char lowerItem = Character.toLowerCase(item);
-                switch(lowerItem){
-                    case 'p'://pawn
-                        board[i] = ((isWhite)?1:2) | 4;
-                        break;
-                    case 'b'://bishop
-                        board[i] = ((isWhite)?1:2) | 8;
-                        break;
-                    case 'n'://knight
-                        board[i] = ((isWhite)?1:2) | 12;
-                        break;
-                    case 'r'://rook
-                        board[i] = ((isWhite)?1:2) | 16;
-                        break;
-                    case 'q'://queen
-                        board[i] = ((isWhite)?1:2) | 20;
-                        break;
-                    case 'k'://knight
-                        board[i] = ((isWhite)?1:2) | 24;
-                        break;
+        String[] splitByRows = onlyFen.split("/");
+        for(int rank = 7; rank  >= 0; rank--){
+            char[] parsedRow = splitByRows[rank].toCharArray();
+            int rowIndex = 0;
+            for(int file = 0; file < 8;file++){
+                char item = parsedRow[rowIndex];
+                if(Character.isDigit(item)){
+                    int parsedInt = item - 48;
+                    file+=parsedInt-1;
+                    rowIndex++;
+                }else{
+                    boolean isWhite = Character.isUpperCase(item);
+                    char lowerItem = Character.toLowerCase(item);
+                    int i = ((7-rank)*8)+file;
+                    switch(lowerItem){
+                        case 'p'://pawn
+                            board[i] = ((isWhite)?1:2) | 4;
+                            break;
+                        case 'n'://bishop
+                            board[i] = ((isWhite)?1:2) | 8;
+                            break;
+                        case 'b'://knight
+                            board[i] = ((isWhite)?1:2) | 12;
+                            break;
+                        case 'r'://rook
+                            board[i] = ((isWhite)?1:2) | 16;
+                            break;
+                        case 'q'://queen
+                            board[i] = ((isWhite)?1:2) | 20;
+                            break;
+                        case 'k'://knight
+                            board[i] = ((isWhite)?1:2) | 24;
+                            break;
+                    }
+                    rowIndex++;
                 }
-                i--;
             }
         }
-
         return board;
+    }
+    public static String boardToFen(int[] board){
+        String fen = "";
+        for(int rank = 7;rank >= 0;rank--){
+            int empty = 0;
+            for(int file = 0;file < 8;file++){
+                int piece = board[(rank*8)+file];
+                if(piece <= 0){
+                    empty++;
+                    continue;
+                }else if(empty > 0){
+                    fen += Integer.toString(empty);
+                    empty = 0;
+                }
+
+                int color = piece & 3;
+                int pieceType = piece & 28;
+                switch(pieceType){
+                    case 4://pawn
+                        fen += (color == 1)?"P":"p";
+                        break;
+                    case 8://bishop
+                        fen += (color == 1)?"B":"b";
+                        break;
+                    case 12://knight
+                        fen += (color == 1)?"N":"n";
+                        break;
+                    case 16://rook
+                        fen += (color == 1)?"R":"r";
+                        break;
+                    case 20://queen
+                        fen += (color == 1)?"Q":"q";
+                        break;
+                    case 24://king
+                        fen += (color == 1)?"K":"k";
+                        break;
+                }
+            }
+            if(empty > 0){
+                fen += Integer.toString(empty);
+                empty = 0;
+            }
+            if(rank != 0)fen += "/";
+        }
+        return fen;
     }
     public static int[] makeMove(int[] board, Move move){
         int[] newBoard = board.clone();

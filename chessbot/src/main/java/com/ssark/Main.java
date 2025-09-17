@@ -1,8 +1,5 @@
 package com.ssark;
 import java.util.ArrayList;
-/**
- * Main class of the Java program my name stephan i stinky++.
- */
 import java.util.Arrays;
 public class Main {
     
@@ -24,7 +21,7 @@ public class Main {
         copyBoard[0] = 6;
         out[1] = !Arrays.equals(newBoard,copyBoard);//test1
         
-        int[] fenBoard = BoardHelper.createBoard("8/8/8/8/8/8/8/7p w - - 0 1");
+        int[] fenBoard = BoardHelper.createBoard("8/8/8/8/8/8/8/p7 w - - 0 1");
         out[2] = Arrays.equals(copyBoard,fenBoard);
 
         System.out.println("createBoard test0 " + ((out[0])?"Passed":"Failed"));
@@ -35,15 +32,20 @@ public class Main {
     private static void findLegalMoves_TEST(){
         boolean[] out = new boolean[1];
         
-        int[] board = BoardHelper.createBoard("rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR");
+        int[] board = BoardHelper.createBoard("4k3/8/8/3pP3/8/8/8/4K3");
         //System.out.println(BoardHelper.generateAttackedPositions(board, 1));
         long startTime = System.nanoTime();
+        
         ArrayList<Move> moves = BoardHelper.findLegalMoves(board, -1);
+        for(Move move:moves){
+            System.out.println("From: "+move.getStartSquare()+" To: "+move.getEndSquare());
+            System.out.println(BoardHelper.boardToFen(BoardHelper.makeMove(board, move)));
+        }
         // for(int i = 0; i < 1000;i++){
         //     BoardHelper.findLegalMoves(board, 1);
         // }
         long endTime = System.nanoTime();
-        
+        System.out.println(BoardHelper.boardToFen(board));
         out[0] = (moves.size() == 16);
         System.out.println("findLegalMoves test0 " + ((out[0])?"Passed":"Failed"));
         System.out.println("Found " + moves.size() + "/" + "16 legal moves");
@@ -56,6 +58,7 @@ public class Main {
         long startTime = System.nanoTime();
         MoveEval bestMove = comp1.findBestMove(board1, 4, 1,new Move(0, 0));
         long endTime = System.nanoTime();
+        
 
         for (int i = 0; i < 20; i++) {
             MoveEval bestMove1 = comp1.findBestMove(board1, 4, 1, null);
