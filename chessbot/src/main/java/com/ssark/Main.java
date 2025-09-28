@@ -32,11 +32,14 @@ public class Main {
     private static void findLegalMoves_TEST(){
         boolean[] out = new boolean[1];
         
-        int[] board = BoardHelper.createBoard("4k3/8/8/3pP3/8/8/8/4K3");
+        int[] board = BoardHelper.createBoard("3k2b1/6N1/4x2R/4p1n1/1N1P4/r2X4/1n6/1B2K3");
         //System.out.println(BoardHelper.generateAttackedPositions(board, 1));
         long startTime = System.nanoTime();
         
-        ArrayList<Move> moves = BoardHelper.findLegalMoves(board, -1);
+        ArrayList<Move> moves = BoardHelper.findLegalMoves(board, 1);
+        long endTime = System.nanoTime();
+        ArrayList<Move> movesBlack = BoardHelper.findLegalMoves(board, -1);
+        
         for(Move move:moves){
             System.out.println("From: "+move.getStartSquare()+" To: "+move.getEndSquare());
             System.out.println(BoardHelper.boardToFen(BoardHelper.makeMove(board, move)));
@@ -44,11 +47,11 @@ public class Main {
         // for(int i = 0; i < 1000;i++){
         //     BoardHelper.findLegalMoves(board, 1);
         // }
-        long endTime = System.nanoTime();
-        System.out.println(BoardHelper.boardToFen(board));
+        
         out[0] = (moves.size() == 16);
         System.out.println("findLegalMoves test0 " + ((out[0])?"Passed":"Failed"));
-        System.out.println("Found " + moves.size() + "/" + "16 legal moves");
+        System.out.println("Found " + moves.size() + " white legal moves");
+        System.out.println("Found " + movesBlack.size() + " black legal moves");
         System.out.println((endTime-startTime)/1_000_000.0 + "ms");
     }
     private static void findBestMove(){

@@ -30,13 +30,16 @@ public class BoardHelper{
                     char lowerItem = Character.toLowerCase(item);
                     int i = ((7-rank)*8)+file;
                     switch(lowerItem){
+                        case 'x'://en-passant
+                            board[i] = -(((isWhite)?1:2) | 4);
+                            break;
                         case 'p'://pawn
                             board[i] = ((isWhite)?1:2) | 4;
                             break;
-                        case 'n'://bishop
+                        case 'b'://bishop
                             board[i] = ((isWhite)?1:2) | 8;
                             break;
-                        case 'b'://knight
+                        case 'n'://knight
                             board[i] = ((isWhite)?1:2) | 12;
                             break;
                         case 'r'://rook
@@ -61,7 +64,7 @@ public class BoardHelper{
             int empty = 0;
             for(int file = 0;file < 8;file++){
                 int piece = board[(rank*8)+file];
-                if(piece <= 0){
+                if(piece == 0){
                     empty++;
                     continue;
                 }else if(empty > 0){
@@ -71,6 +74,14 @@ public class BoardHelper{
 
                 int color = piece & 3;
                 int pieceType = piece & 28;
+                if(piece < 0){
+                    piece = Math.abs(piece);
+                    color = piece & 3;
+                    pieceType = piece & 28;
+
+                    fen += (color == 1)?"X":"x";
+                    continue;
+                }
                 switch(pieceType){
                     case 4://pawn
                         fen += (color == 1)?"P":"p";
@@ -388,7 +399,9 @@ public class BoardHelper{
         for(int dir = 0; dir < 8; dir++){
             if(squaresToEdge[square][dir] == 0)continue;
             int target = square + directionalOffsets[dir];
-            if((board[target] & 3) == (piece & 3))continue;
+            int targetPiece = board[target];
+            if(targetPiece < 0)targetPiece = 0;
+            if((targetPiece & 3) == (piece & 3))continue;
 
             long kingMap = 1L << target;
             if((kingMap & checkMap) != 0)continue;
@@ -396,13 +409,15 @@ public class BoardHelper{
             moves.add(new Move(square,target));
             
         }
+
         if((piece & 32) == 0){
-            int rookRight = board[square + 3];
-            int rookLeft = board[square - 4];
-            long rightCheck = 3L << (((piece & 3)==1)?5:61);
-            long leftCheck = 3L << (((piece & 3)==1)?1:57);
+            int rookRight = ((square+3) < 64)?board[square + 3]:0;
+            int rookLeft = ((square-4) >= 0)?board[square - 4]:0;
+            long rightCheck = 7L << (((piece & 3)==1)?4:60);
+            long leftCheck = 11L << (((piece & 3)==1)?1:57);
             //right castle
             if(
+                (rookRight != 0) &&
                 (rookRight & 28) == 16 && 
                 (rookRight & 32) == 0 && 
                 (checkMap & rightCheck) == 0 &&
@@ -411,7 +426,9 @@ public class BoardHelper{
             ){
                 moves.add(new Move(true,square,square+3));
             }
+            //left castle
             if(
+                (rookRight != 0) &&
                 (rookLeft & 28) == 16 &&
                 (rookLeft & 32)==0 &&
                 (checkMap & leftCheck) == 0 &&
@@ -433,6 +450,9 @@ public class BoardHelper{
             for(int dist = 0;dist < squaresToEdge[square][dir];dist++){
                 int target  = square + directionalOffsets[dir] * (dist+1);
                 int targetPiece = board[target];
+
+                if(targetPiece < 0)targetPiece = 0;
+                
                 int targetPieceColor = targetPiece & 3;
                 if(targetPieceColor == (piece & 3))break;//break if friendly
 
@@ -460,6 +480,9 @@ public class BoardHelper{
                 if((piece & 28)==24 && dist > 0)break;
                 int target  = square + directionalOffsets[dir] * (dist+1);
                 int targetPiece = board[target];
+
+                if(targetPiece < 0)targetPiece = 0;
+
                 int targetPieceColor = targetPiece & 3;
                 map = map | 1L << target;
                 if(targetPieceColor == (piece & 3))break;
@@ -474,6 +497,7 @@ public class BoardHelper{
             if(!knightEdgeCheck[square][dir])continue;
             int target = square + knightOffsets[dir];
             int targetPiece = board[target];
+            if(targetPiece < 0)targetPiece = 0;
             int targetPieceColor = targetPiece & 3;
             if(targetPieceColor == (piece & 3))continue;
 
