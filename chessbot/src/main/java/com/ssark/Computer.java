@@ -27,7 +27,7 @@ public class Computer {
                     bestMove = new MoveEval(value, move, value.evaluation);
                 }
                 alpha = Math.max(alpha, bestMove.evaluation);
-                if(beta <= alpha){
+                if(beta <= alpha + 1e-6){
                     break;
                 }
             }
@@ -41,7 +41,7 @@ public class Computer {
                     bestMove = new MoveEval(value, move, value.evaluation);
                 }
                 beta = Math.min(beta, bestMove.evaluation);
-                if(beta <= alpha){
+                if(beta <= alpha + 1e-6){
                     break;
                 }
             }

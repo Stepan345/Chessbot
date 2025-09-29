@@ -1,6 +1,7 @@
 package com.ssark;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Scanner;
 public class Main {
     
     public static void main(String[] args) {
@@ -8,7 +9,8 @@ public class Main {
         createBoard_TEST();
         //findLegalMoves_TEST();
         //findBestMove();
-        cpuVcpu();
+        //cpuVcpu();
+        playerVcpu();
     }
     private static void createBoard_TEST(){
         boolean[] out = new boolean[3];
@@ -101,6 +103,32 @@ public class Main {
             System.out.println(bestMove2.move.getStartSquare() + " to " + bestMove2.move.getEndSquare() + " eval: " + bestMove2.evaluation);
             System.out.println("Board Eval: " + Computer.evaluate(board1));
             System.out.println((endTime-startTime)/1_000_000.0 + "ms\n");
+        }
+    }
+    private static void playerVcpu(){
+        Computer comp1 = new Computer();
+        int[] board1 = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+        boolean gameOver = false;
+        Scanner scanner = new Scanner(System.in);
+        while(!gameOver){
+            System.out.println("White to move\nWhat square to move from? (0-63)");
+            int from = scanner.nextInt();
+            if(from < 0) break;
+            System.out.println("What square to move to? (0-63)");
+            int to = scanner.nextInt();
+            Move playerMove = new Move(from,to,board1);
+            board1 = BoardHelper.makeMove(board1, playerMove);
+            System.out.println(BoardHelper.boardToFen(board1));
+            System.out.println("Black to move");
+            long startTime = System.nanoTime();
+            MoveEval bestMove = comp1.findBestMove(board1, 5, -1,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
+            long endTime = System.nanoTime();
+            board1 = BoardHelper.makeMove(board1, bestMove.move);
+            System.out.println(BoardHelper.boardToFen(board1));
+            System.out.println(bestMove.move.getStartSquare() + " to " + bestMove.move.getEndSquare() + " eval: " + bestMove.evaluation);
+            System.out.println("Board Eval: " + Computer.evaluate(board1));
+            System.out.println((endTime-startTime)/1_000_000.0 + "ms\n");
+
         }
     }
 }
