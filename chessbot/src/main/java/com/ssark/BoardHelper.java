@@ -12,6 +12,13 @@ public class BoardHelper{
         int[] board = new int[64];
         return board;
     }
+    public static int countPieces(int[] board){
+        int count = 0;
+        for(int piece:board){
+            if(piece > 0)count++;
+        }
+        return count;
+    }
     public static int[] createBoard(String fen){
         int[] board = new int[64];
         String onlyFen = fen.split(" ")[0];
@@ -139,6 +146,9 @@ public class BoardHelper{
         if((piece&28) ==24 || (piece&28) == 16){
             piece |= 32;
         }
+        if(move.isPromotion()){
+            piece = move.getPromotion() | (piece & 3);
+        }
         newBoard[startSquare] = 0;
         newBoard[endSquare] = piece;
         return newBoard;
@@ -157,7 +167,7 @@ public class BoardHelper{
         pieceValue.put(12,300);
         pieceValue.put(16,500);
         pieceValue.put(20,900);
-        pieceValue.put(24,10000);
+        pieceValue.put(24,400);
         for(int i = 0; i < 64; i++){
             int file = i % 8;
             int rank = i / 8;
@@ -272,31 +282,32 @@ public class BoardHelper{
                     legalMoves.addAll(generateKingMoves(i,squareValue,board));
                     break;
             }
-            //Sort Moves
-            legalMoves.sort((a, b)  -> {
-
-                int valA = 0;
-                int valB = 0;
-
-                int capturedPieceValueA = pieceValue.get(board[a.getEndSquare()] & 28);
-                int capturedPieceValueB = pieceValue.get(board[b.getEndSquare()] & 28);
-
-                valA += capturedPieceValueA;
-                valB += capturedPieceValueB;
-                if(a.isCastle()) valA = 25;
-                if(b.isCastle()) valB = 25;
-                int[] checkTestBoardA = makeMove(board, a);
-                int[] checkTestBoardB = makeMove(board, b);
-
-                int kingA = getKingPosition(checkTestBoardA, ((board[a.getStartSquare()] & 3) == 1)?2:1);
-                int kingB = getKingPosition(checkTestBoardB, ((board[b.getStartSquare()] & 3) == 1)?2:1);
-
-                if((generateAttackedPositions(checkTestBoardA, colorToMove*-1) & (1L << kingA)) != 0)valA += 75;
-                if((generateAttackedPositions(checkTestBoardB, colorToMove*-1) & (1L << kingB)) != 0)valB += 75;
-
-                return valB - valA;
-            });
+            
         }
+        //Sort Moves
+        legalMoves.sort((a, b)  -> {
+
+            int valA = 0;
+            int valB = 0;
+
+            int capturedPieceValueA = pieceValue.get(board[a.getEndSquare()] & 28);
+            int capturedPieceValueB = pieceValue.get(board[b.getEndSquare()] & 28);
+
+            valA += capturedPieceValueA;
+            valB += capturedPieceValueB;
+            if(a.isCastle()) valA = 25;
+            if(b.isCastle()) valB = 25;
+            int[] checkTestBoardA = makeMove(board, a);
+            int[] checkTestBoardB = makeMove(board, b);
+
+            int kingA = getKingPosition(checkTestBoardA, ((board[a.getStartSquare()] & 3) == 1)?2:1);
+            int kingB = getKingPosition(checkTestBoardB, ((board[b.getStartSquare()] & 3) == 1)?2:1);
+
+            if((generateAttackedPositions(checkTestBoardA, colorToMove*-1) & (1L << kingA)) != 0)valA += 75;
+            if((generateAttackedPositions(checkTestBoardB, colorToMove*-1) & (1L << kingB)) != 0)valB += 75;
+
+            return valB - valA;
+        });
         for (Integer integer : phantomPawnList) {
             board[integer] = 0;
         }
@@ -310,14 +321,19 @@ public class BoardHelper{
         int color = ((piece & 3) == 1)?1:-1;
         //if there is no piece in front of you && you are not on the last rank
         if(board[square+(8*color)] <= 0 && rank != ((color == 1)?7:0)){
-            Move move = new Move(square,square+(8*color));
+            Move move = new Move(square,square+(8*color),board);
             long captureMap = generateAttackedPositions(makeMove(board,move),color);
             long kingMap = 1L << getKingPosition(board,piece & 3);
 
             if((captureMap & kingMap) == 0){
-                moves.add(move);
+                if((rank == ((color == 1)?6:1))){
+                    moves.add(new Move(square,square+(8*color),8,board));
+                    moves.add(new Move(square,square+(8*color),12,board));
+                    moves.add(new Move(square,square+(8*color),16,board));
+                    moves.add(new Move(square,square+(8*color),20,board));
+                }else moves.add(move);
                 if(rank == ((color == 1)?1:6) && board[square+(16*color)] <= 0){
-                    moves.add(new Move(square,square+(16*color)));
+                    moves.add(new Move(square,square+(16*color),board));
                 }
             }
             
@@ -332,7 +348,12 @@ public class BoardHelper{
             long kingMap = 1L << getKingPosition(board,piece & 3);
 
             if((captureMap & kingMap) == 0){
-                moves.add(move);
+                if((rank == ((color == 1)?6:1))){
+                    moves.add(new Move(square,square+((color == 1)?7:-9),8,board));
+                    moves.add(new Move(square,square+((color == 1)?7:-9),12,board));
+                    moves.add(new Move(square,square+((color == 1)?7:-9),16,board));
+                    moves.add(new Move(square,square+((color == 1)?7:-9),20,board));
+                }else moves.add(move);
             }
         }
         //capture right
@@ -343,9 +364,12 @@ public class BoardHelper{
             long captureMap = generateAttackedPositions(makeMove(board,move),color);
             long kingMap = 1L << getKingPosition(board,piece & 3);
 
-            if((captureMap & kingMap) == 0){
-                moves.add(move);
-            }
+            if((rank == ((color == 1)?6:1))){
+                moves.add(new Move(square,square+((color == 1)?9:-7),8,board));
+                moves.add(new Move(square,square+((color == 1)?9:-7),12,board));
+                moves.add(new Move(square,square+((color == 1)?9:-7),16,board));
+                moves.add(new Move(square,square+((color == 1)?9:-7),20,board));
+            }else moves.add(move);
         }
         return moves;
     }
@@ -406,7 +430,7 @@ public class BoardHelper{
             long kingMap = 1L << target;
             if((kingMap & checkMap) != 0)continue;
 
-            moves.add(new Move(square,target));
+            moves.add(new Move(square,target,board));
             
         }
 
@@ -414,7 +438,7 @@ public class BoardHelper{
             int rookRight = ((square+3) < 64)?board[square + 3]:0;
             int rookLeft = ((square-4) >= 0)?board[square - 4]:0;
             long rightCheck = 7L << (((piece & 3)==1)?4:60);
-            long leftCheck = 11L << (((piece & 3)==1)?1:57);
+            long leftCheck = 7L << (((piece & 3)==1)?2:58);
             //right castle
             if(
                 (rookRight != 0) &&
@@ -456,7 +480,7 @@ public class BoardHelper{
                 int targetPieceColor = targetPiece & 3;
                 if(targetPieceColor == (piece & 3))break;//break if friendly
 
-                Move move = new Move(square,target);
+                Move move = new Move(square,target,board);
                 long captureMap = generateAttackedPositions(makeMove(board,move),((piece & 3)==1)?1:-1);
                 long kingMap = 1L << getKingPosition(board,piece & 3);
 
@@ -501,7 +525,7 @@ public class BoardHelper{
             int targetPieceColor = targetPiece & 3;
             if(targetPieceColor == (piece & 3))continue;
 
-            Move move = new Move(square,target);
+            Move move = new Move(square,target,board);
             long captureMap = generateAttackedPositions(makeMove(board,move),((piece & 3)==1)?1:-1);
             long kingMap = 1L << getKingPosition(board,piece & 3);
 

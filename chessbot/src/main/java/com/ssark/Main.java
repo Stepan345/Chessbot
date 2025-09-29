@@ -6,9 +6,9 @@ public class Main {
     public static void main(String[] args) {
         BoardHelper.preCompMoveData();
         createBoard_TEST();
-        findLegalMoves_TEST();
-
+        //findLegalMoves_TEST();
         //findBestMove();
+        cpuVcpu();
     }
     private static void createBoard_TEST(){
         boolean[] out = new boolean[3];
@@ -59,20 +59,49 @@ public class Main {
         Computer comp2 = new Computer();
         int[] board1 = BoardHelper.createBoard("rnbkqbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBKQBNR");
         long startTime = System.nanoTime();
-        MoveEval bestMove = comp1.findBestMove(board1, 4, 1,new Move(0, 0));
+        MoveEval bestMove = comp1.findBestMove(board1, 4, -1,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
         long endTime = System.nanoTime();
-        
+        //System.out.println(comp1.counter);
 
         for (int i = 0; i < 20; i++) {
-            MoveEval bestMove1 = comp1.findBestMove(board1, 4, 1, null);
+            MoveEval bestMove1 = comp1.findBestMove(board1, 4, 1,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
             board1 = BoardHelper.makeMove(board1, bestMove1.move);
-            MoveEval bestMove2 = comp2.findBestMove(board1, 4, -1, null);
+            MoveEval bestMove2 = comp2.findBestMove(board1, 4, -1,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
             board1 = BoardHelper.makeMove(board1, bestMove1.move);
             System.out.println(bestMove1.move.getStartSquare());
         }
         System.out.println(bestMove.move.getStartSquare());
         //System.out.println(comp1.counter);
         System.out.println((endTime-startTime)/1_000_000.0 + "ms");
+    }
+    private static void cpuVcpu(){
+        Computer comp1 = new Computer();
+        Computer comp2 = new Computer();
+        int[] board1 = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+        MoveEval bestMove1 = new MoveEval(new Move(0,0),0);
+        MoveEval bestMove2 = new MoveEval(new Move(0,0),0);
+        long startTime;
+        long endTime;
+        for (int i = 0; i < 10; i++) {
+            System.out.println("White to move");
+            startTime = System.nanoTime();
+            bestMove1 = comp1.findBestMove(board1, 5, 1,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
+            endTime = System.nanoTime();
+            board1 = BoardHelper.makeMove(board1, bestMove1.move);
+            System.out.println(BoardHelper.boardToFen(board1));
+            System.out.println(bestMove1.move.getStartSquare() + " to " + bestMove1.move.getEndSquare() + " eval: " + bestMove1.evaluation);
+            System.out.println("Board Eval: " + Computer.evaluate(board1));
+            System.out.println((endTime-startTime)/1_000_000.0 + "ms\n");
+            System.out.println("Black to move");
+            startTime = System.nanoTime();
+            bestMove2 = comp2.findBestMove(board1, 5, -1,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
+            endTime = System.nanoTime();
+            board1 = BoardHelper.makeMove(board1, bestMove2.move);
+            System.out.println(BoardHelper.boardToFen(board1));
+            System.out.println(bestMove2.move.getStartSquare() + " to " + bestMove2.move.getEndSquare() + " eval: " + bestMove2.evaluation);
+            System.out.println("Board Eval: " + Computer.evaluate(board1));
+            System.out.println((endTime-startTime)/1_000_000.0 + "ms\n");
+        }
     }
 }
 
