@@ -2,8 +2,6 @@ package com.ssark;
 import java.util.ArrayList;
 import java.util.HashMap;
 public class BoardHelper{
-    
-
     public static int[] createBoard(int[] board){
         int[] newBoard = board.clone();
         return newBoard;
@@ -117,6 +115,20 @@ public class BoardHelper{
             if(rank != 0)fen += "/";
         }
         return fen;
+    }
+    public static void printBoard(int[] board){
+        String out = "   a b c d e f g h\n   - - - - - - - -\n8- ";
+        for(int rank = 7;rank >= 0;rank--){
+            for(int file = 0;file < 8;file++){
+                int i = (rank*8)+file;
+                if(board[i] <= 0)out += "# ";
+                else out += PieceHelper.getString(board[i],true)+" ";
+                if(file == 7 && rank != 0)out+="\n"+(rank)+"- ";
+            }
+        }
+        out+="\n   - - - - - - - -";
+        out+="\n   a b c d e f g h";
+        System.out.println(out);
     }
     public static int[] makeMove(int[] board, Move move){
         int[] newBoard = board.clone();
