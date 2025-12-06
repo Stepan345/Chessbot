@@ -117,7 +117,7 @@ public class BoardHelper{
         return fen;
     }
     public static void printBoard(int[] board){
-        String out = "   a b c d e f g h\n   - - - - - - - -\n8- ";
+        String out = "\n   a b c d e f g h\n   - - - - - - - -\n8- ";
         for(int rank = 7;rank >= 0;rank--){
             for(int file = 0;file < 8;file++){
                 int i = (rank*8)+file;
@@ -176,7 +176,7 @@ public class BoardHelper{
         pieceValue.put(-4,100);
         pieceValue.put(4,100);
         pieceValue.put(8,250);
-        pieceValue.put(12,300);
+        pieceValue.put(12,275);
         pieceValue.put(16,500);
         pieceValue.put(20,900);
         pieceValue.put(24,400);
