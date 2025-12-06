@@ -14,20 +14,26 @@ public class Computer {
         ArrayList<MoveEval> bestMoves = new ArrayList<MoveEval>();
         ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, colorToMove);
         if(legalMoves.size() == 0){
+            long checkMap = BoardHelper.generateAttackedPositions(board, colorToMove);
+            long kingMap = 1L << BoardHelper.getKingPosition(board,colorToMove);
+            if((checkMap | kingMap) == 0)return new MoveEval(0);
             return new MoveEval(-1_000_000*colorToMove);
         }
         MoveEval bestMove;
         if(colorToMove == 1){//white
             bestMove = new MoveEval(Double.NEGATIVE_INFINITY);
             for(Move move:legalMoves){
+
                 int[] newBoard = BoardHelper.makeMove(board, move);
-                MoveEval value = findBestMove(newBoard, depth-1, -1, alpha, beta);
+                MoveEval value;
+                if(move.isCapture() && depth == 1) value = findBestMove(newBoard, depth-1, -1, alpha, beta);
+                else value = findBestMove(newBoard, depth-1, -1, alpha, beta);
                 bestMoves.add(new MoveEval(value, move, value.evaluation));
                 if(value.evaluation > bestMove.evaluation){
                     bestMove = new MoveEval(value, move, value.evaluation);
                 }
-                alpha = Math.max(alpha, bestMove.evaluation);
-                if(beta <= alpha + 1e-6){
+                alpha = Math.max(alpha, value/*bestMove*/.evaluation);
+                if(beta <= alpha/*+ 1e-6*/){
                     break;
                 }
             }
@@ -35,13 +41,16 @@ public class Computer {
             bestMove = new MoveEval(Double.POSITIVE_INFINITY);
             for(Move move:legalMoves){
                 int[] newBoard = BoardHelper.makeMove(board, move);
-                MoveEval value = findBestMove(newBoard, depth-1, 1, alpha, beta);
+                MoveEval value;
+                if(move.isCapture() && depth == 1) value = findBestMove(newBoard, depth-1, 1, alpha, beta);
+                else value = findBestMove(newBoard, depth-1, 1, alpha, beta);
+                
                 bestMoves.add(new MoveEval(value, move, value.evaluation));
                 if(value.evaluation < bestMove.evaluation){
                     bestMove = new MoveEval(value, move, value.evaluation);
                 }
-                beta = Math.min(beta, bestMove.evaluation);
-                if(beta <= alpha + 1e-6){
+                beta = Math.min(beta, value/*bestMove*/.evaluation);
+                if(beta <= alpha/*+ 1e-6*/){
                     break;
                 }
             }
@@ -72,11 +81,11 @@ public class Computer {
     private static final double[] pawnWeightsEarly = new double[]{
         0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,
         1.0,1.0,1.0,1.0,1.0,1.1,1.0,1.0,
-        1.0,0.9,0.9,1.2,1.2,0.6,0.9,1.0,
-        0.9,0.9,0.9,1.65,1.65,0.6,0.7,0.7,
-        0.9,0.9,0.9,0.9,0.9,0.6,0.7,0.7,
-        0.9,0.9,0.9,0.9,0.9,0.6,0.7,0.7,
-        0.9,0.9,0.9,0.9,0.9,0.6,0.7,0.7,
+        1.0,0.9,0.9,1.2,1.2,0.5,0.9,1.0,
+        0.9,0.9,0.9,2.2,2.2,0.5,0.7,0.7,
+        0.9,0.9,0.9,0.9,0.9,0.5,0.7,0.7,
+        0.9,0.9,0.9,0.9,0.9,0.5,0.7,0.7,
+        0.9,0.9,0.9,0.9,0.9,0.5,0.7,0.7,
         0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
     };
     private static final double[] pawnWeightsLate = new double[]{
@@ -155,20 +164,20 @@ public class Computer {
                     double value = BoardHelper.pieceValue.get(pieceType);
                     if(color == -1){
                         lookupSquare = (7-rank)*8 + file;
-                        int gameProgress = BoardHelper.countPieces(board)/32;
+                        double gameProgress = BoardHelper.countPieces(board)/32.0;
                         double[] lookupTable = new double[64];
                         for(int i = 0; i < 64; i++){
                             //interpolate between early and late game weights based on game progress
-                            lookupTable[i] = pawnWeightsEarly[i] * (gameProgress) + pawnWeightsLate[i] * (1-gameProgress);
+                            lookupTable[i] = (pawnWeightsEarly[i] * (gameProgress)) + (pawnWeightsLate[i] * (1-gameProgress));
                         }
                         evaluation += color * value * lookupTable[lookupSquare];
                     }else{
                         lookupSquare = square;
-                        int gameProgress = BoardHelper.countPieces(board)/32;
+                        double gameProgress = BoardHelper.countPieces(board)/32.0;
                         double[] lookupTable = new double[64];
                         for(int i = 0; i < 64; i++){
                             //interpolate between early and late game weights based on game progress
-                            lookupTable[i] = pawnWeightsEarly[i] * (gameProgress) + pawnWeightsLate[i] * (1-gameProgress);
+                            lookupTable[i] = (pawnWeightsEarly[i] * (gameProgress)) + (pawnWeightsLate[i] * (1-gameProgress));
                         }
                         evaluation += color * value * lookupTable[lookupSquare];
                     }
@@ -191,11 +200,11 @@ public class Computer {
                     //mirror the rank for black pieces
                     lookupSquare = ((color == 1)?(7-rank):rank)*8 + file;
                     boolean canCastle = (piece & 32) == 0;
-                    int gameProgress = BoardHelper.countPieces(board)/32;
+                    double gameProgress = BoardHelper.countPieces(board)/32.0;
                     double[] lookupTable = new double[64];
                     for(int i = 0; i < 64; i++){
                         //interpolate between early and late game weights based on game progress
-                        lookupTable[i] = ((canCastle)?kingWeightsAbleToCastle[i]:kingWeightsUnableToCastle[i]) * (gameProgress) + kingWeightsEndgame[i] * (1-gameProgress);
+                        lookupTable[i] = (((canCastle)?kingWeightsAbleToCastle[i]:kingWeightsUnableToCastle[i]) * (gameProgress)) + (kingWeightsEndgame[i] * (1-gameProgress));
                     }
                     evaluation += color * BoardHelper.pieceValue.get(pieceType) * lookupTable[lookupSquare];
                     break;

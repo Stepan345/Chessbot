@@ -344,11 +344,15 @@ public class BoardHelper{
                     moves.add(new Move(square,square+(8*color),16,board));
                     moves.add(new Move(square,square+(8*color),20,board));
                 }else moves.add(move);
-                if(rank == ((color == 1)?1:6) && board[square+(16*color)] <= 0){
-                    moves.add(new Move(square,square+(16*color),board));
+            }
+            if((rank == ((color == 1)?1:6))&&(board[square+(16*color)]<=0)){
+                move = new Move(square,square+16*color);
+                captureMap = generateAttackedPositions(makeMove(board,move),color);
+                kingMap = 1L << getKingPosition(board,piece & 3);
+                if((captureMap & kingMap) == 0){
+                    moves.add(move);
                 }
             }
-            
         }
         //capture and en-passant
         //capture left
@@ -516,13 +520,11 @@ public class BoardHelper{
                 if((piece & 28)==24 && dist > 0)break;
                 int target  = square + directionalOffsets[dir] * (dist+1);
                 int targetPiece = board[target];
-
-                if(targetPiece < 0)targetPiece = 0;
-
+                if(targetPiece <= 0)targetPiece = 0;
                 int targetPieceColor = targetPiece & 3;
                 map = map | 1L << target;
                 if(targetPieceColor == (piece & 3))break;
-                if((targetPiece & 28) > 0)break;
+                if((targetPiece & 28) > 0 && PieceHelper.getType(targetPiece)!=24)break;
             }
         }
         return map;
@@ -549,9 +551,9 @@ public class BoardHelper{
         }
         return moves;
     }
-    private static int getKingPosition(int[] board, int color){
+    public static int getKingPosition(int[] board, int color){
         for(int i = 0;i<board.length;i++){
-            if(board[i] == (24 | color)){
+            if(board[i] == (24 | color)||board[i] == (56 | color)){
                 return i;
             }
         }

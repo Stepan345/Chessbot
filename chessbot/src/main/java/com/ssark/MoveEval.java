@@ -18,5 +18,10 @@ public class MoveEval {
     public MoveEval(double evaluation){
         this.evaluation = evaluation;
     }
+    public void addMoveToLine(Move move,double evaluation){
+        this.line.add(0, move);
+        this.evaluation = evaluation;
+        this.move = move;
+    }
 
 }
