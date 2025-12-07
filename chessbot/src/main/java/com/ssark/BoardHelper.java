@@ -174,12 +174,12 @@ public class BoardHelper{
         long startTime = System.nanoTime();
         pieceValue.put(0,0);
         pieceValue.put(-4,100);
-        pieceValue.put(4,100);
-        pieceValue.put(8,250);
-        pieceValue.put(12,275);
-        pieceValue.put(16,500);
-        pieceValue.put(20,900);
-        pieceValue.put(24,400);
+        pieceValue.put(4,100);//pawn
+        pieceValue.put(8,330);//bishop
+        pieceValue.put(12,320);//knight
+        pieceValue.put(16,500);//rook
+        pieceValue.put(20,900);//queen
+        pieceValue.put(24,20000);//king
         for(int i = 0; i < 64; i++){
             int file = i % 8;
             int rank = i / 8;
@@ -256,7 +256,6 @@ public class BoardHelper{
         long endTime = System.nanoTime();
         
         System.out.println("Pre-Computed move data in " + (endTime-startTime)/1_000_000.0 + "ms");
-        // System.out.println(Arrays.toString(knightEdgeCheck[0]));
     }
     public static ArrayList<Move> findLegalMoves(int[] board,int colorToMove){
         ArrayList<Move> legalMoves = new ArrayList<Move>();

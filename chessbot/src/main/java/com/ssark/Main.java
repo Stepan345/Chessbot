@@ -15,6 +15,7 @@ public class Main {
         //findBestMove();
         cpuVcpu();
         //playerVcpu();
+        //testEvaluate();
     }
     private static void createBoard_TEST(){
         boolean[] out = new boolean[3];
@@ -83,11 +84,21 @@ public class Main {
         //System.out.println(comp1.counter);
         System.out.println((endTime-startTime)/1_000_000.0 + "ms");
     }
+    private static void testEvaluate(){
+        int[] board1 = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+        BoardHelper.printBoard(board1);
+        //double eval = Computer.evaluate(board1,true);
+        long startTime = System.nanoTime();
+        double eval = Computer.evaluate(board1);
+        long endTime = System.nanoTime();
+        System.out.println("Board Eval: " + eval);
+        System.out.println((endTime-startTime)/1_000_000.0 + "ms");
+    }
     private static void cpuVcpu(){
-        String gameID = System.currentTimeMillis()+"";
+        String gameID = "1765064125572";//System.currentTimeMillis()+"";
         Computer comp1 = new Computer();
         //Computer comp2 = new Computer();
-        int[] board1 = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+        int[] board1 = BoardHelper.createBoard("8/1p1r4/p1k5/5R2/3K2P1/7P/8/8");
         //MoveEval bestMove1 = new MoveEval(new Move(0,0),0);
         //MoveEval bestMove2 = new MoveEval(new Move(0,0),0);
         long startTime = 0;
@@ -202,15 +213,14 @@ public class Main {
         //double gameProgress = 1-(BoardHelper.countPieces(board)/32.0);
         comp.timeLimitSeconds = timeLimitSeconds;
         comp.startTime = 0;
-        int depth = 7;
+        int depth = 6;
         
         ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, color);
         if(legalMoves.size() >= 20){
-            depth = 6;
+            depth = 5;
         }
         System.out.println("Searching at depth of "+depth);
         long startTime = System.nanoTime();
-        
         MoveEval bestMove = comp.findBestMove(board, depth, color,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
         System.out.println("New best move found at depth "+(depth)+": "+bestMove.move.getNotation(board)+" Eval: "+bestMove.evaluation);
         depth++;
