@@ -1,12 +1,57 @@
 package com.ssark;
 import java.util.ArrayList;
+import java.util.concurrent.*;
+
+import javax.management.RuntimeErrorException;
+
 import java.lang.Math;
 
+
 public class Computer {
+    // class MoveThread extends Thread{
+    //     private int[] board;
+    //     private int depthLast;
+    //     private int colorToMove;
+    //     private double alpha;
+    //     private double delta;
+    //     public MoveThread(int[] board,int depthLast, int colorToMove, double alpha, double beta){
+
+    //     }
+    // }
     public ArrayList<MoveEval> lastBestMoves = new ArrayList<MoveEval>();
     //public int counter = 0;
     public double timeLimitSeconds = 5.0;
     public long startTime;
+    public static final ExecutorService executor = Executors.newFixedThreadPool(4);
+    public MoveEval findBestMove(int[] board,int depth,int colorToMove){
+        var moves = BoardHelper.findLegalMoves(board, colorToMove);
+        var tasks = new ArrayList<Future<MoveEval>>();
+        var bestMove = new MoveEval(colorToMove*Double.NEGATIVE_INFINITY);
+        for(Move move:moves){
+            var task = executor.submit(() -> {
+                var board1 = BoardHelper.makeMove(board, move);
+                return findBestMove(board1, depth-1, colorToMove*-1,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
+            });
+            tasks.add(task);
+        }
+
+
+        try{
+            for(int i = 0;i<tasks.size();i++){
+                var task = tasks.get(i);
+                var move = task.get();
+                if(
+                    (colorToMove == 1 && move.evaluation > bestMove.evaluation) ||//white
+                    (colorToMove == -1 && move.evaluation < bestMove.evaluation)//black
+                ){
+                    bestMove = new MoveEval(move,moves.get(i),move.evaluation);
+                }
+            }
+            return bestMove;
+        }catch(Exception e){
+            throw new RuntimeException(e);
+        }
+    }
     public MoveEval findBestMove(int[] board,int depthLast, int colorToMove, double alpha, double beta){
         int depth = depthLast;
         if(this.startTime != 0 && (System.nanoTime() - this.startTime) / 1_000_000_000.0 > this.timeLimitSeconds){

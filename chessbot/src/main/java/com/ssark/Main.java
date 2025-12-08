@@ -320,13 +320,13 @@ public class Main {
         }
         System.out.println("Searching at depth of "+depth);
         long startTime = System.nanoTime();
-        MoveEval bestMove = comp.findBestMove(board, depth, color,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
+        MoveEval bestMove = comp.findBestMove(board, depth, color);
         System.out.println("New best move found at depth "+(depth)+": "+bestMove.move.getNotation(board)+" Eval: "+bestMove.evaluation);
         depth++;
         comp.startTime = startTime;
         while(comp.startTime + timeLimitSeconds*1_000_000_000L > System.nanoTime()){
             System.out.println("Searching at depth "+depth);
-            MoveEval moveFound = comp.findBestMove(board, depth, color,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
+            MoveEval moveFound = comp.findBestMove(board, depth, color);
             if(comp.startTime + timeLimitSeconds*1_000_000_000L > System.nanoTime()){
                 bestMove = moveFound;
                 System.out.println("New best move found at depth "+(depth)+": "+bestMove.move.getNotation(board)+" Eval: "+bestMove.evaluation);
