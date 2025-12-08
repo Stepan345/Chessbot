@@ -1,7 +1,5 @@
 package com.ssark;
 
-import chariot.chess.Piece;
-
 public class Move{
     private int startSquare;
     private int endSquare;
@@ -14,7 +12,11 @@ public class Move{
         this.endSquare = endSquare;
     }
     public Move(int startSquare,int endSquare,int[] board){
-        this.capture = (board[endSquare] != 0);
+        this.capture = (board[endSquare] > 0);
+        if(PieceHelper.getType(board[endSquare])==4&&board[endSquare]<0&&PieceHelper.getColor(-board[endSquare]) != PieceHelper.getColor(board[startSquare])){
+            this.enPassant = true;
+            this.capture = true;
+        }
         this.startSquare = startSquare;
         this.endSquare = endSquare;
     }
@@ -70,7 +72,7 @@ public class Move{
                     break;
             }
         }
-        if(this.capture && board[this.endSquare]<0)this.enPassant = true;
+        if(this.capture && board[this.endSquare]<0 && PieceHelper.getColor(-board[this.endSquare])!=PieceHelper.getColor(board[this.startSquare]))this.enPassant = true;
         if(PieceHelper.getType(board[this.startSquare]) == 24){
             int diff = Math.abs(this.startSquare-this.endSquare);
             if(diff ==2){

@@ -3,7 +3,7 @@ import java.util.ArrayList;
 public class MoveEval {
     public Move move;
     public double evaluation;
-    public ArrayList<Move> line = new ArrayList<Move>();
+    public ArrayList<Move> line = new ArrayList<>();
     public MoveEval(Move move,double evaluation){
         this.move = move;
         this.evaluation = evaluation;

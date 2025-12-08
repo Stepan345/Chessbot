@@ -1,29 +1,28 @@
 package com.ssark;
-import java.util.Map;
-import java.util.HashMap;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.FileWriter;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.stream.Stream;
-import chariot.*;
-import chariot.model.Event.Type;
-import chariot.model.Event;
-import chariot.model.Game;
-import chariot.model.GameStateEvent;
+
+import chariot.Client;
+import chariot.ClientAuth;
 import chariot.model.Enums.Status;
-import chariot.api.BotApiAuth;
-import chariot.chess.Board;
+import chariot.model.Event;
+import chariot.model.Event.Type;
+import chariot.model.GameStateEvent;
 
 public class Main {
     
     public static void main(String[] args) {
         BoardHelper.preCompMoveData();
-        //createBoard_TEST();
+        //createBoard_TEST("c2c4 e7e5 b1c3 b8c6 e2e4 c6d4 d2d3 g8f6 g1f3 d7d6 f1e2 d4e2 d1e2 f8e7 e1g1 e8g8 c1e3 c8e6 d3d4 e6c4 e2c4");
         //findLegalMoves_TEST("r1bq3r/ppppkppp/2n2n2/4p1B1/2B1P3/P1P2N2/1PP2PPP/R2QK2R",99,-1);
         //findBestMove();
         //cpuVcpu();
@@ -78,17 +77,23 @@ public class Main {
                                         Move moveObj = new Move(move,board);
                                         board = BoardHelper.makeMove(board, moveObj);
                                     }
+                                    
                                     System.out.println("Moves so far: " + movesStr);
+                                    BoardHelper.printBoard(board);
                                     if(moves.length %2 == 1){//bot to move
                                         Computer comp = new Computer();
-                                        BoardHelper.printBoard(board);
-                                        ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, 0);
+                                        ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, -1);
                                         for(int i = 0;i<legalMoves.size();i++){
                                             System.out.println((i+1)+". "+legalMoves.get(i).getNotation(board));
                                         }
                                         long startTime = System.nanoTime();
-                                        MoveEval bestMove = makeCpuMove(board,comp,-1,10.0);
+                                        MoveEval bestMove = makeCpuMove(board,comp,-1,5.0);
                                         long endTime = System.nanoTime();
+                                        int[] boardCopy = BoardHelper.createBoard(board);
+                                        for(Move move:bestMove.line){
+                                            System.out.print(move.getNotation(boardCopy)+" ");
+                                            boardCopy = BoardHelper.makeMove(boardCopy, move);
+                                        }
                                         System.out.println("Best Move: " + bestMove.move.getNotation(board)+" Eval: "+bestMove.evaluation);
                                         System.out.println((endTime-startTime)/1_000_000.0 + "ms");
                                         client.bot().move(event.id(),bestMove.move.getNotation(board,true));
@@ -133,6 +138,19 @@ public class Main {
         System.out.println("createBoard test1 " + ((out[1])?"Passed":"Failed"));
         System.out.println("createBoard test2 " + ((out[2])?"Passed":"Failed"));
 
+    }
+    private static void createBoard_TEST(String boardMoves){
+        boolean[] out = new boolean[3];
+        //perform test
+        String[] moves = boardMoves.split(" ");
+        int[] board = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+        BoardHelper.printBoard(board);
+        for(String move:moves){
+            Move moveObj = new Move(move,board);
+            System.out.println(moveObj.getNotation(board));
+            board = BoardHelper.makeMove(board, moveObj);
+            BoardHelper.printBoard(board);
+        }
     }
     private static void findLegalMoves_TEST(String fen,int expected,int color){
         boolean out;
