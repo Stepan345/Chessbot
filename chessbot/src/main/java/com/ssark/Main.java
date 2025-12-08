@@ -1,10 +1,23 @@
 package com.ssark;
+import java.util.Map;
+import java.util.HashMap;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
+import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Scanner;
+import java.util.stream.Stream;
+import chariot.*;
+import chariot.model.Event.Type;
+import chariot.model.Event;
+import chariot.model.Game;
+import chariot.model.GameStateEvent;
+import chariot.model.Enums.Status;
+import chariot.api.BotApiAuth;
+import chariot.chess.Board;
 
 public class Main {
     
@@ -13,10 +26,95 @@ public class Main {
         //createBoard_TEST();
         //findLegalMoves_TEST("r1bq3r/ppppkppp/2n2n2/4p1B1/2B1P3/P1P2N2/1PP2PPP/R2QK2R",99,-1);
         //findBestMove();
-        cpuVcpu();
+        //cpuVcpu();
         //playerVcpu();
         //testEvaluate();
+        //chariotTest();
+        hostGame();
     }
+    private static void hostGame(){
+        String token = "";
+        try (BufferedReader reader = new BufferedReader(new FileReader("token.txt"))) {
+            token = reader.readLine();
+            System.out.println(token);
+        } catch (IOException e) {
+            System.err.println("Error reading file: " + e.getMessage());
+        }
+        ClientAuth client = Client.auth(token);
+        System.out.println(client.account().emailAddress());
+        client.bot().upgradeToBotAccount();
+        Stream<Event> events = client.bot().connect().stream();
+        Map<String,int[]> boards = new HashMap<String,int[]>();
+        System.out.println("Bot connected and listening for events...");
+        events.forEach(event -> {
+            System.out.println("New event: " + event.type());
+            switch (event.type()) {
+                case Type.challenge:
+
+                    System.out.println("Accepting challenge: " + event.id());
+                    client.bot().acceptChallenge(event.id());
+                    //boards.put(event.id(),BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"));
+                    break;
+                case Type.gameStart:
+                    System.out.println("Game started: " + event.id());
+                    Stream<GameStateEvent> gameEvents = client.bot().connectToGame(event.id()).stream();
+                    gameEvents.forEach( gameEvent ->{
+                        System.out.println("New game event: " + gameEvent.type());
+                        switch(gameEvent.type()){
+                            case GameStateEvent.Type.gameFull:
+                                break;
+                            case GameStateEvent.Type.gameState:
+                                Status status = ((GameStateEvent.State)gameEvent).status();
+                                if(status == Status.mate || status == Status.resign || status == Status.timeout || status == Status.draw){
+                                    System.out.println("Game over: " + status);
+                                    boards.remove(event.id());
+                                    break;
+                                }else{
+                                    //move logic
+                                    String movesStr = ((GameStateEvent.State)gameEvent).moves();
+                                    String[] moves = movesStr.split(" ");
+                                    int[] board = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+                                    for(String move:moves){
+                                        Move moveObj = new Move(move,board);
+                                        board = BoardHelper.makeMove(board, moveObj);
+                                    }
+                                    System.out.println("Moves so far: " + movesStr);
+                                    if(moves.length %2 == 1){//bot to move
+                                        Computer comp = new Computer();
+                                        BoardHelper.printBoard(board);
+                                        ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, 0);
+                                        for(int i = 0;i<legalMoves.size();i++){
+                                            System.out.println((i+1)+". "+legalMoves.get(i).getNotation(board));
+                                        }
+                                        long startTime = System.nanoTime();
+                                        MoveEval bestMove = makeCpuMove(board,comp,-1,10.0);
+                                        long endTime = System.nanoTime();
+                                        System.out.println("Best Move: " + bestMove.move.getNotation(board)+" Eval: "+bestMove.evaluation);
+                                        System.out.println((endTime-startTime)/1_000_000.0 + "ms");
+                                        client.bot().move(event.id(),bestMove.move.getNotation(board,true));
+                                        boards.put(event.id(),BoardHelper.makeMove(board, bestMove.move));
+                                    }
+                                }
+                                break;
+                            default:
+                                System.out.println("Unhandled game event type: " + gameEvent.type());
+                                break;
+                        }
+                    });
+                    break;
+                default:
+                    System.out.println("Unhandled event type: " + event.type());
+                    break;
+            }
+        });
+    }
+    private static void chariotTest(){
+        Client client = Client.basic();
+        System.out.println(client.teams().byTeamId("lichess-swiss").maybe()
+            .map(team -> "Team %s has %d members!".formatted(team.name(), team.nbMembers()))
+            .orElse("Couldn't find team!"));
+    }
+
     private static void createBoard_TEST(){
         boolean[] out = new boolean[3];
         //perform test
@@ -194,7 +292,7 @@ public class Main {
                 //System.out.println(BoardHelper.boardToFen(BoardHelper.makeMove(board, move)));
             }
             startTime = System.nanoTime();
-            MoveEval bestMove = makeCpuMove(board1, comp1, 1,15.0);
+            MoveEval bestMove = makeCpuMove(board1, comp1, -1,10.0);
             endTime = System.nanoTime();
             int[] boardCopy = BoardHelper.createBoard(board1);
             for(Move move:bestMove.line){
@@ -202,8 +300,9 @@ public class Main {
                 boardCopy = BoardHelper.makeMove(boardCopy, move);
             }
 
-            BoardHelper.printBoard(board1);
+            
             board1 = BoardHelper.makeMove(board1, bestMove.move);
+            //BoardHelper.printBoard(board1);
             System.out.println("Board Eval: " + Computer.evaluate(board1));
             System.out.println((endTime-startTime)/1_000_000.0 + "ms\n");
         }
@@ -213,11 +312,11 @@ public class Main {
         //double gameProgress = 1-(BoardHelper.countPieces(board)/32.0);
         comp.timeLimitSeconds = timeLimitSeconds;
         comp.startTime = 0;
-        int depth = 6;
+        int depth = 5;
         
         ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, color);
         if(legalMoves.size() >= 20){
-            depth = 5;
+            depth = 4;
         }
         System.out.println("Searching at depth of "+depth);
         long startTime = System.nanoTime();

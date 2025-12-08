@@ -125,7 +125,7 @@ public class Computer {
     };
     private static final int[] kingWeightsAbleToCastle = new int[]{
         20,30,10,0,0,10,30,20,
-        20,20,0,0,0,0,20,20,
+        20,20,-20,-20,-20,-20,20,20,
         -10,-20,-20,-20,-20,-20,-20,-10,
         -20,-30,-30,-40,-40,-30,-30,-20,
         -30,-40,-40,-50,-50,-40,-40,-30,
@@ -233,7 +233,7 @@ public class Computer {
             if(doDebugPrint && file == 7)System.out.print("\n");
         }
         boolean isLateGame = false;
-        if(queens[0] == 0 && queens[1] == 0){
+        if(queens[0] == 0 && queens[1] == 0 && (knights[0] + knights[1] + bishops[0] + bishops[1]) <= 3 && (rooks[0] + rooks[1]) <= 2){
             isLateGame = true;
         }else if(queens[0] == 1 && (rooks[0] + knights[0] +  bishops[0]) <= 1){
             isLateGame = true;

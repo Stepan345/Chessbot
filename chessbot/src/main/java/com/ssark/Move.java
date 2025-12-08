@@ -1,4 +1,7 @@
 package com.ssark;
+
+import chariot.chess.Piece;
+
 public class Move{
     private int startSquare;
     private int endSquare;
@@ -47,6 +50,38 @@ public class Move{
         this.capture = parent.isCapture();
         this.promotion = parent.getPromotion();
     }
+    public Move(String uciMove,int[] board){
+        this.startSquare = (uciMove.charAt(0)-'a') + (uciMove.charAt(1)-'1')*8;
+        this.endSquare = (uciMove.charAt(2)-'a') + (uciMove.charAt(3)-'1')*8;
+        this.capture = (board[endSquare] != 0);
+        if(uciMove.length() == 5){
+            switch(uciMove.charAt(4)){
+                case 'b':
+                    this.promotion = 8;
+                    break;
+                case 'n':
+                    this.promotion = 12;
+                    break;
+                case 'r':
+                    this.promotion = 16;
+                    break;
+                case 'q':
+                    this.promotion = 20;
+                    break;
+            }
+        }
+        if(this.capture && board[this.endSquare]<0)this.enPassant = true;
+        if(PieceHelper.getType(board[this.startSquare]) == 24){
+            int diff = Math.abs(this.startSquare-this.endSquare);
+            if(diff ==2){
+                this.castle = true;
+                this.endSquare++;
+            }else if(diff ==3){
+                this.castle = true;
+                this.endSquare--;
+            }
+        }
+    }
     public int getStartSquare(){
         return startSquare;
     }
@@ -69,33 +104,56 @@ public class Move{
         return promotion != 0;
     }
     public String getNotation(int[] board){
+        return getNotation(board,false);
+    }
+    public String getNotation(int[] board,boolean uci){
         //System.out.println(this.startSquare+" "+this.endSquare);
-        if(this.castle){
-            if(Math.abs(this.startSquare-this.endSquare)==2)return "O-O";
-            if(Math.abs(this.startSquare-this.endSquare)==3)return "O-O-O";
+        String out = "";
+        if(this.castle && !uci){
+            if(Math.abs(this.startSquare-this.endSquare)==3)return "O-O";
+            if(Math.abs(this.startSquare-this.endSquare)==4)return "O-O-O";
             return "Invalid Castle";
         }
-        String out = "";
-        switch(board[this.startSquare]&28){
-            case 4:
-                break;
-            case 8:
-                out+="B";
-                break;
-            case 12:
-                out+="N";
-                break;
-            case 16:
-                out+="R";
-                break;
-            case 20:
-                out+="Q";
-                break;
-            case 24:
-                out+="K";
-                break;
-            default:
-                return ""+(board[this.startSquare]&28);
+        if(this.castle && uci){
+            if(Math.abs(this.startSquare-this.endSquare)==3){//shortcastle
+                if(PieceHelper.getColor(startSquare)==PieceHelper.WHITE){
+                    return "e1g1";
+                }else{
+                    return "e8g8";
+                }
+            }
+            if(Math.abs(this.startSquare-this.endSquare)==4){//longcastle
+                if(PieceHelper.getColor(startSquare)==PieceHelper.WHITE){
+                    return "e1c1";
+                }else{
+                    return "e8c8";
+                }
+            }
+            return "Invalid Castle";
+        }
+        
+        if(!uci){        
+            switch(board[this.startSquare]&28){
+                case 4:
+                    break;
+                case 8:
+                    out+="B";
+                    break;
+                case 12:
+                    out+="N";
+                    break;
+                case 16:
+                    out+="R";
+                    break;
+                case 20:
+                    out+="Q";
+                    break;
+                case 24:
+                    out+="K";
+                    break;
+                default:
+                    return ""+(board[this.startSquare]&28);
+            }
         }
         
         int column = this.startSquare%8;
@@ -129,7 +187,7 @@ public class Move{
         }
         //System.out.println(column);
         out+=(this.startSquare/8)+1;
-        if(this.isCapture())out+="x";
+        if(this.isCapture() && !uci)out+="x";
         int targetColumn = this.endSquare%8;
         switch (targetColumn) {
             case 0:
