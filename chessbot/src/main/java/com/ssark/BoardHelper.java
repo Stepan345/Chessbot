@@ -378,13 +378,14 @@ public class BoardHelper{
             Move move = new Move(square,square+((color == 1)?9:-7),enPassant);
             long captureMap = generateAttackedPositions(makeMove(board,move),color);
             long kingMap = 1L << getKingPosition(board,piece & 3);
-
-            if((rank == ((color == 1)?6:1))){
-                moves.add(new Move(square,square+((color == 1)?9:-7),8,board));
-                moves.add(new Move(square,square+((color == 1)?9:-7),12,board));
-                moves.add(new Move(square,square+((color == 1)?9:-7),16,board));
-                moves.add(new Move(square,square+((color == 1)?9:-7),20,board));
-            }else moves.add(move);
+            if((captureMap & kingMap) == 0){
+                if((rank == ((color == 1)?6:1))){
+                    moves.add(new Move(square,square+((color == 1)?9:-7),8,board));
+                    moves.add(new Move(square,square+((color == 1)?9:-7),12,board));
+                    moves.add(new Move(square,square+((color == 1)?9:-7),16,board));
+                    moves.add(new Move(square,square+((color == 1)?9:-7),20,board));
+                }else moves.add(move);
+            }
         }
         return moves;
     }
@@ -500,6 +501,7 @@ public class BoardHelper{
                 long kingMap = 1L << getKingPosition(board,piece & 3);
 
                 if((captureMap & kingMap) != 0){
+                    if((targetPiece & 28) > 0)break;//Stop on capture
                     continue;
                 }
 

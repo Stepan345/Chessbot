@@ -26,14 +26,14 @@ public class Main {
     
     public static void main(String[] args) {
         BoardHelper.preCompMoveData();
-        //createBoard_TEST("e2e4 e7e5 b1c3 b8c6 d2d3 g8f6 c1e3 d7d5 d3d4 e5d4 e3d4 c6d4 d1d4 d5e4 e1c1 d8d4 d1d4 f8c5 d4c4 c5f2 g1e2 f2e3 c1b1 e8g8 e2g3 e3d4 c4d4 e4e3 f1e2 f6e8 d4e4 a7a6 e4e3 a6a5 e2d1 a5a4");
+        createBoard_TEST("e2e4 e7e5 g1f3 b8c6 f1c4 d7d6 d2d4 e5d4 f3d4 g8e7 e1g1 c6e5 c4b3 c7c5 f2f4 c5d4 f4e5 d6e5 d1h5 d8d6 b1a3 g7g6 a3c4 d6d5 e4d5 g6h5 b3a4 e8d8 c4e5 d8c7 d5d6 c7b8 d6e7 f8e7 e5f7 h8f8 c1f4");
         //findLegalMoves_TEST("r1bq3r/ppppkppp/2n2n2/4p1B1/2B1P3/P1P2N2/1PP2PPP/R2QK2R",99,-1);
         //findBestMove();
         //cpuVcpu();
         //playerVcpu();
         //testEvaluate();
         //chariotTest();
-        hostGame();
+        //hostGame();
     }
     private static void hostGame(){
         String token = "";
@@ -154,7 +154,7 @@ public class Main {
                                             System.out.println((i+1)+". "+legalMoves.get(i).getNotation(board));
                                         }
                                         long startTime = System.nanoTime();
-                                        MoveEval bestMove = makeCpuMove(board,comp,colorToMove,5.0);
+                                        MoveEval bestMove = makeCpuMove(board,comp,colorToMove,10.0);
                                         long endTime = System.nanoTime();
                                         int[] boardCopy = BoardHelper.createBoard(board);
                                         for(Move move:bestMove.line){
@@ -217,6 +217,10 @@ public class Main {
             board = BoardHelper.makeMove(board, moveObj);
             BoardHelper.printBoard(board);
         }
+        final int[] boardCopy = BoardHelper.createBoard(board);
+        BoardHelper.findLegalMoves(board, -1).forEach((move)->{
+            System.out.println(move.getNotation(boardCopy));
+        });
     }
     private static void findLegalMoves_TEST(String fen,int expected,int color){
         boolean out;
