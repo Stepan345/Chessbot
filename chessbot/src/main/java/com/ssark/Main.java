@@ -26,7 +26,7 @@ public class Main {
     
     public static void main(String[] args) {
         BoardHelper.preCompMoveData();
-        createBoard_TEST("e2e4 e7e5 g1f3 b8c6 f1c4 d7d6 d2d4 e5d4 f3d4 g8e7 e1g1 c6e5 c4b3 c7c5 f2f4 c5d4 f4e5 d6e5 d1h5 d8d6 b1a3 g7g6 a3c4 d6d5 e4d5 g6h5 b3a4 e8d8 c4e5 d8c7 d5d6 c7b8 d6e7 f8e7 e5f7 h8f8 c1f4");
+        createBoard_TEST("b1c3 d7d5 e2e4 d5d4 c3d5 b8c6 f1d3 e7e5 d1e2 g8f6 d5f6 d8f6 g1f3 f8d6 c2c3 d4c3 d2c3 e8g8 c1g5 f6g6");
         //findLegalMoves_TEST("r1bq3r/ppppkppp/2n2n2/4p1B1/2B1P3/P1P2N2/1PP2PPP/R2QK2R",99,-1);
         //findBestMove();
         //cpuVcpu();
@@ -80,46 +80,29 @@ public class Main {
                         int colorToMove;
                         switch(gameEvent.type()){
                             case GameStateEvent.Type.gameFull:
-                                // movesStr = ((GameStateEvent.Full)gameEvent).state().moves();
-                                // //move logic
-                                
-                                // moves = movesStr.split(" ");
-                                // if(moves.length == 0){
-                                //     System.out.println("No moves found in game start event");
-                                //     colors.put(event.id(),PieceHelper.BLACK);
-                                // }
-                                // if(!colors.containsKey(event.id())){
-                                //     System.out.println("Game started without challenge event, assigning color based on player id");
-                                //     colors.put(event.id(),(moves.length % 2 == 0)?PieceHelper.WHITE:PieceHelper.BLACK);
-                                // }
-                                // board = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
-                                // for(String move:moves){
-                                //     Move moveObj = new Move(move,board);
-                                //     board = BoardHelper.makeMove(board, moveObj);
-                                // }
-                                
-                                // System.out.println("Moves so far: " + movesStr);
-                                // BoardHelper.printBoard(board);
-                                // colorToMove = colors.get(event.id());
-                                // if(moves.length %2 == ((colorToMove == PieceHelper.WHITE)?0:1)){//bot to move
-                                //     Computer comp = new Computer();
-                                //     ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, -1);
-                                //     for(int i = 0;i<legalMoves.size();i++){
-                                //         System.out.println((i+1)+". "+legalMoves.get(i).getNotation(board));
-                                //     }
-                                //     long startTime = System.nanoTime();
-                                //     MoveEval bestMove = makeCpuMove(board,comp,colorToMove,5.0);
-                                //     long endTime = System.nanoTime();
-                                //     int[] boardCopy = BoardHelper.createBoard(board);
-                                //     for(Move move:bestMove.line){
-                                //         System.out.print(move.getNotation(boardCopy)+" ");
-                                //         boardCopy = BoardHelper.makeMove(boardCopy, move);
-                                //     }
-                                //     System.out.println("Best Move: " + bestMove.move.getNotation(board)+" Eval: "+bestMove.evaluation);
-                                //     System.out.println((endTime-startTime)/1_000_000.0 + "ms");
-                                //     client.bot().move(event.id(),bestMove.move.getNotation(board,true));
-                                //     //boards.put(event.id(),BoardHelper.makeMove(board, bestMove.move));
-                                // }
+                                if(colors.containsKey(event.id())){
+                                    movesStr = ((GameStateEvent.Full)gameEvent).state().moves();
+                                    if(movesStr.isEmpty()){
+                                        board = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+                                        System.out.println("No moves played yet");
+                                        Computer comp = new Computer();
+                                        ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, -1);
+                                        for(int i = 0;i<legalMoves.size();i++){
+                                            System.out.println((i+1)+". "+legalMoves.get(i).getNotation(board));
+                                        }
+                                        long startTime = System.nanoTime();
+                                        MoveEval bestMove = makeCpuMove(board,comp,1,10.0);
+                                        long endTime = System.nanoTime();
+                                        int[] boardCopy = BoardHelper.createBoard(board);
+                                        for(Move move:bestMove.line){
+                                            System.out.print(move.getNotation(boardCopy)+" ");
+                                            boardCopy = BoardHelper.makeMove(boardCopy, move);
+                                        }
+                                        System.out.println("Best Move: " + bestMove.move.getNotation(board)+" Eval: "+bestMove.evaluation);
+                                        System.out.println((endTime-startTime)/1_000_000.0 + "ms");
+                                        client.bot().move(event.id(),bestMove.move.getNotation(board,true));
+                                    }
+                                }
                                 break;
                             case GameStateEvent.Type.gameState:
                                 Status status = ((GameStateEvent.State)gameEvent).status();
@@ -218,8 +201,8 @@ public class Main {
             BoardHelper.printBoard(board);
         }
         final int[] boardCopy = BoardHelper.createBoard(board);
-        BoardHelper.findLegalMoves(board, -1).forEach((move)->{
-            System.out.println(move.getNotation(boardCopy));
+        BoardHelper.findLegalMoves(board, 1).forEach((move)->{
+            System.out.println(move.getNotation(boardCopy,true));
         });
     }
     private static void findLegalMoves_TEST(String fen,int expected,int color){

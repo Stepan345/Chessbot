@@ -120,14 +120,15 @@ public class Move{
         }
         if(this.castle && uci){
             if(Math.abs(this.startSquare-this.endSquare)==3){//shortcastle
-                if(PieceHelper.getColor(startSquare)==PieceHelper.WHITE){
+                //System.out.println(startSquare);
+                if(PieceHelper.getColor(board[startSquare])==PieceHelper.WHITE){
                     return "e1g1";
                 }else{
                     return "e8g8";
                 }
             }
             if(Math.abs(this.startSquare-this.endSquare)==4){//longcastle
-                if(PieceHelper.getColor(startSquare)==PieceHelper.WHITE){
+                if(PieceHelper.getColor(board[startSquare])==PieceHelper.WHITE){
                     return "e1c1";
                 }else{
                     return "e8c8";

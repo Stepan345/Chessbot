@@ -42,7 +42,7 @@ public class PieceHelper {
     public static final int WHITE = 1;
     public static final int BLACK = -1;
     public static int getColor(int piece){
-        return ((piece & 3)==2)?1:-1;
+        return ((piece & 3)==1)?1:-1;
     }
     public static boolean canCastle(int piece){
         return (piece & 32) == 0;
