@@ -13,16 +13,20 @@ import java.util.stream.Stream;
 
 import chariot.Client;
 import chariot.ClientAuth;
+import chariot.chess.Piece;
+import chariot.model.ChallengeInfo;
 import chariot.model.Enums.Status;
 import chariot.model.Event;
+import chariot.model.Enums.Color;
 import chariot.model.Event.Type;
 import chariot.model.GameStateEvent;
+import chariot.model.ChallengeInfo.ColorOutcome;
 
 public class Main {
     
     public static void main(String[] args) {
         BoardHelper.preCompMoveData();
-        //createBoard_TEST("c2c4 e7e5 b1c3 b8c6 e2e4 c6d4 d2d3 g8f6 g1f3 d7d6 f1e2 d4e2 d1e2 f8e7 e1g1 e8g8 c1e3 c8e6 d3d4 e6c4 e2c4");
+        //createBoard_TEST("e2e4 e7e5 b1c3 b8c6 d2d3 g8f6 c1e3 d7d5 d3d4 e5d4 e3d4 c6d4 d1d4 d5e4 e1c1 d8d4 d1d4 f8c5 d4c4 c5f2 g1e2 f2e3 c1b1 e8g8 e2g3 e3d4 c4d4 e4e3 f1e2 f6e8 d4e4 a7a6 e4e3 a6a5 e2d1 a5a4");
         //findLegalMoves_TEST("r1bq3r/ppppkppp/2n2n2/4p1B1/2B1P3/P1P2N2/1PP2PPP/R2QK2R",99,-1);
         //findBestMove();
         //cpuVcpu();
@@ -39,18 +43,29 @@ public class Main {
         } catch (IOException e) {
             System.err.println("Error reading file: " + e.getMessage());
         }
+        //ChallengeInfo[
+        // id=dDUFPFbl, 
+        // fullId=Empty[], 
+        // status=Some[value=created], 
+        // url=https://lichess.org/dDUFPFbl, 
+        // players=FromTo[challenger=Player[user=stepan136 (stepan136), rating=1500, provisional=true, online=true, lag=Some[value=4]], 
+        // challenged=Player[user=[BOT] StepanJavaBot (stepanjavabot), rating=2000, provisional=true, online=true, lag=Empty[]]], 
+        // gameType=GameType[rated=false, variant=standard, timeControl=Unlimited[]], 
+        // colorInfo=ColorOutcome[request=random, outcome=white], 
+        // rules=[]
         ClientAuth client = Client.auth(token);
         System.out.println(client.account().emailAddress());
         client.bot().upgradeToBotAccount();
         Stream<Event> events = client.bot().connect().stream();
-        Map<String,int[]> boards = new HashMap<String,int[]>();
+        Map<String,Integer> colors = new HashMap<String,Integer>();
         System.out.println("Bot connected and listening for events...");
         events.forEach(event -> {
             System.out.println("New event: " + event.type());
             switch (event.type()) {
                 case Type.challenge:
-
-                    System.out.println("Accepting challenge: " + event.id());
+                    var color = ((ColorOutcome)(client.bot().show(event.id()).get().colorInfo())).outcome();
+                    colors.put(event.id(),(color == Color.white)?PieceHelper.BLACK:PieceHelper.WHITE);
+                    System.out.println("Accepting challenge: " + event.id()+". Opponent color = " + color);
                     client.bot().acceptChallenge(event.id());
                     //boards.put(event.id(),BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"));
                     break;
@@ -59,20 +74,71 @@ public class Main {
                     Stream<GameStateEvent> gameEvents = client.bot().connectToGame(event.id()).stream();
                     gameEvents.forEach( gameEvent ->{
                         System.out.println("New game event: " + gameEvent.type());
+                        String movesStr;
+                        String[] moves;
+                        int[] board;
+                        int colorToMove;
                         switch(gameEvent.type()){
                             case GameStateEvent.Type.gameFull:
+                                // movesStr = ((GameStateEvent.Full)gameEvent).state().moves();
+                                // //move logic
+                                
+                                // moves = movesStr.split(" ");
+                                // if(moves.length == 0){
+                                //     System.out.println("No moves found in game start event");
+                                //     colors.put(event.id(),PieceHelper.BLACK);
+                                // }
+                                // if(!colors.containsKey(event.id())){
+                                //     System.out.println("Game started without challenge event, assigning color based on player id");
+                                //     colors.put(event.id(),(moves.length % 2 == 0)?PieceHelper.WHITE:PieceHelper.BLACK);
+                                // }
+                                // board = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+                                // for(String move:moves){
+                                //     Move moveObj = new Move(move,board);
+                                //     board = BoardHelper.makeMove(board, moveObj);
+                                // }
+                                
+                                // System.out.println("Moves so far: " + movesStr);
+                                // BoardHelper.printBoard(board);
+                                // colorToMove = colors.get(event.id());
+                                // if(moves.length %2 == ((colorToMove == PieceHelper.WHITE)?0:1)){//bot to move
+                                //     Computer comp = new Computer();
+                                //     ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, -1);
+                                //     for(int i = 0;i<legalMoves.size();i++){
+                                //         System.out.println((i+1)+". "+legalMoves.get(i).getNotation(board));
+                                //     }
+                                //     long startTime = System.nanoTime();
+                                //     MoveEval bestMove = makeCpuMove(board,comp,colorToMove,5.0);
+                                //     long endTime = System.nanoTime();
+                                //     int[] boardCopy = BoardHelper.createBoard(board);
+                                //     for(Move move:bestMove.line){
+                                //         System.out.print(move.getNotation(boardCopy)+" ");
+                                //         boardCopy = BoardHelper.makeMove(boardCopy, move);
+                                //     }
+                                //     System.out.println("Best Move: " + bestMove.move.getNotation(board)+" Eval: "+bestMove.evaluation);
+                                //     System.out.println((endTime-startTime)/1_000_000.0 + "ms");
+                                //     client.bot().move(event.id(),bestMove.move.getNotation(board,true));
+                                //     //boards.put(event.id(),BoardHelper.makeMove(board, bestMove.move));
+                                // }
                                 break;
                             case GameStateEvent.Type.gameState:
                                 Status status = ((GameStateEvent.State)gameEvent).status();
+                                
                                 if(status == Status.mate || status == Status.resign || status == Status.timeout || status == Status.draw){
                                     System.out.println("Game over: " + status);
-                                    boards.remove(event.id());
+                                    colors.remove(event.id());
                                     break;
                                 }else{
+                                    
                                     //move logic
-                                    String movesStr = ((GameStateEvent.State)gameEvent).moves();
-                                    String[] moves = movesStr.split(" ");
-                                    int[] board = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+                                    movesStr = ((GameStateEvent.State)gameEvent).moves();
+                                    
+                                    moves = movesStr.split(" ");
+                                    if(!colors.containsKey(event.id())){
+                                        System.out.println("Game started without challenge event, assigning color based on player id");
+                                        colors.put(event.id(),(moves.length % 2 == 0)?PieceHelper.WHITE:PieceHelper.BLACK);
+                                    }
+                                    board = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
                                     for(String move:moves){
                                         Move moveObj = new Move(move,board);
                                         board = BoardHelper.makeMove(board, moveObj);
@@ -80,14 +146,15 @@ public class Main {
                                     
                                     System.out.println("Moves so far: " + movesStr);
                                     BoardHelper.printBoard(board);
-                                    if(moves.length %2 == 1){//bot to move
+                                    colorToMove = colors.get(event.id());
+                                    if(moves.length %2 == ((colorToMove == PieceHelper.WHITE)?0:1)){//bot to move
                                         Computer comp = new Computer();
                                         ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, -1);
                                         for(int i = 0;i<legalMoves.size();i++){
                                             System.out.println((i+1)+". "+legalMoves.get(i).getNotation(board));
                                         }
                                         long startTime = System.nanoTime();
-                                        MoveEval bestMove = makeCpuMove(board,comp,-1,5.0);
+                                        MoveEval bestMove = makeCpuMove(board,comp,colorToMove,5.0);
                                         long endTime = System.nanoTime();
                                         int[] boardCopy = BoardHelper.createBoard(board);
                                         for(Move move:bestMove.line){
@@ -97,7 +164,7 @@ public class Main {
                                         System.out.println("Best Move: " + bestMove.move.getNotation(board)+" Eval: "+bestMove.evaluation);
                                         System.out.println((endTime-startTime)/1_000_000.0 + "ms");
                                         client.bot().move(event.id(),bestMove.move.getNotation(board,true));
-                                        boards.put(event.id(),BoardHelper.makeMove(board, bestMove.move));
+                                        //boards.put(event.id(),BoardHelper.makeMove(board, bestMove.move));
                                     }
                                 }
                                 break;
@@ -140,7 +207,6 @@ public class Main {
 
     }
     private static void createBoard_TEST(String boardMoves){
-        boolean[] out = new boolean[3];
         //perform test
         String[] moves = boardMoves.split(" ");
         int[] board = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");

@@ -74,14 +74,16 @@ public class Move{
         }
         if(this.capture && board[this.endSquare]<0 && PieceHelper.getColor(-board[this.endSquare])!=PieceHelper.getColor(board[this.startSquare]))this.enPassant = true;
         if(PieceHelper.getType(board[this.startSquare]) == 24){
-            int diff = Math.abs(this.startSquare-this.endSquare);
-            if(diff ==2){
+            int diff = this.startSquare-this.endSquare;
+            //System.out.println("Diff: "+diff);
+            if(diff < 0 && Math.abs(diff) == 2){
                 this.castle = true;
                 this.endSquare++;
-            }else if(diff ==3){
+            }else if (diff > 0 && Math.abs(diff) == 2){
                 this.castle = true;
-                this.endSquare--;
+                this.endSquare-=2;
             }
+            //.out.println("StartSquare "+this.startSquare+" EndSquare "+this.endSquare);
         }
     }
     public int getStartSquare(){

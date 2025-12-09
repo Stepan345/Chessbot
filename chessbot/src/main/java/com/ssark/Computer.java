@@ -22,7 +22,7 @@ public class Computer {
     //public int counter = 0;
     public double timeLimitSeconds = 5.0;
     public long startTime;
-    public static final ExecutorService executor = Executors.newFixedThreadPool(4);
+    public static final ExecutorService executor = Executors.newFixedThreadPool(100);
     public MoveEval findBestMove(int[] board,int depth,int colorToMove){
         var moves = BoardHelper.findLegalMoves(board, colorToMove);
         var tasks = new ArrayList<Future<MoveEval>>();
@@ -32,7 +32,9 @@ public class Computer {
                 var board1 = BoardHelper.makeMove(board, move);
                 return findBestMove(board1, depth-1, colorToMove*-1,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
             });
+            
             tasks.add(task);
+            //System.out.println("Created new task for move "+move.getNotation(board));
         }
 
 
@@ -40,6 +42,7 @@ public class Computer {
             for(int i = 0;i<tasks.size();i++){
                 var task = tasks.get(i);
                 var move = task.get();
+                //System.out.println("Computed move "+moves.get(i).getNotation(board)+" to have value "+move.evaluation);
                 if(
                     (colorToMove == 1 && move.evaluation > bestMove.evaluation) ||//white
                     (colorToMove == -1 && move.evaluation < bestMove.evaluation)//black
