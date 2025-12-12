@@ -13,27 +13,28 @@ import java.util.stream.Stream;
 
 import chariot.Client;
 import chariot.ClientAuth;
-import chariot.chess.Piece;
-import chariot.model.ChallengeInfo;
+import chariot.model.ChallengeInfo.ColorOutcome;
+import chariot.model.Enums.Color;
 import chariot.model.Enums.Status;
 import chariot.model.Event;
-import chariot.model.Enums.Color;
 import chariot.model.Event.Type;
 import chariot.model.GameStateEvent;
-import chariot.model.ChallengeInfo.ColorOutcome;
 
 public class Main {
     
     public static void main(String[] args) {
         BoardHelper.preCompMoveData();
-        createBoard_TEST("b1c3 d7d5 e2e4 d5d4 c3d5 b8c6 f1d3 e7e5 d1e2 g8f6 d5f6 d8f6 g1f3 f8d6 c2c3 d4c3 d2c3 e8g8 c1g5 f6g6");
+        //createBoard_TEST("b1c3 d7d5 e2e4 d5d4 c3d5 b8c6 f1d3 e7e5 d1e2 g8f6 d5f6 d8f6 g1f3 f8d6 c2c3 d4c3 d2c3 e8g8 c1g5 f6g6");
         //findLegalMoves_TEST("r1bq3r/ppppkppp/2n2n2/4p1B1/2B1P3/P1P2N2/1PP2PPP/R2QK2R",99,-1);
         //findBestMove();
         //cpuVcpu();
         //playerVcpu();
         //testEvaluate();
         //chariotTest();
-        //hostGame();
+        hostGame();
+        //System.out.println(Computer.evaluate(BoardHelper.createBoard("7k/R7/8/8/3K4/8/8/8 w - - 0 1"),true));
+        //System.out.println(Computer.evaluate(BoardHelper.createBoard("7k/R7/8/4K3/8/8/8/8 b - - 0 1"),true));
+
     }
     private static void hostGame(){
         String token = "";
@@ -43,16 +44,7 @@ public class Main {
         } catch (IOException e) {
             System.err.println("Error reading file: " + e.getMessage());
         }
-        //ChallengeInfo[
-        // id=dDUFPFbl, 
-        // fullId=Empty[], 
-        // status=Some[value=created], 
-        // url=https://lichess.org/dDUFPFbl, 
-        // players=FromTo[challenger=Player[user=stepan136 (stepan136), rating=1500, provisional=true, online=true, lag=Some[value=4]], 
-        // challenged=Player[user=[BOT] StepanJavaBot (stepanjavabot), rating=2000, provisional=true, online=true, lag=Empty[]]], 
-        // gameType=GameType[rated=false, variant=standard, timeControl=Unlimited[]], 
-        // colorInfo=ColorOutcome[request=random, outcome=white], 
-        // rules=[]
+        
         ClientAuth client = Client.auth(token);
         System.out.println(client.account().emailAddress());
         client.bot().upgradeToBotAccount();
@@ -82,7 +74,7 @@ public class Main {
                             case GameStateEvent.Type.gameFull:
                                 if(colors.containsKey(event.id())){
                                     movesStr = ((GameStateEvent.Full)gameEvent).state().moves();
-                                    if(movesStr.isEmpty()){
+                                    if(movesStr.isEmpty() && colors.get(event.id()) == PieceHelper.WHITE){
                                         board = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
                                         System.out.println("No moves played yet");
                                         Computer comp = new Computer();
@@ -383,11 +375,11 @@ public class Main {
         //double gameProgress = 1-(BoardHelper.countPieces(board)/32.0);
         comp.timeLimitSeconds = timeLimitSeconds;
         comp.startTime = 0;
-        int depth = 5;
+        int depth = 4;
         
         ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, color);
         if(legalMoves.size() >= 20){
-            depth = 4;
+            depth = 3;
         }
         System.out.println("Searching at depth of "+depth);
         long startTime = System.nanoTime();

@@ -70,7 +70,7 @@ public class Computer {
             long checkMap = BoardHelper.generateAttackedPositions(board, colorToMove);
             long kingMap = 1L << BoardHelper.getKingPosition(board,colorToMove);
             if((checkMap | kingMap) == 0)return new MoveEval(0);
-            return new MoveEval(-1_000_000*colorToMove);
+            return new MoveEval(-1_000_000*colorToMove*depthLast);
         }
         MoveEval bestMove;
         if(colorToMove == 1){//white
@@ -202,6 +202,7 @@ public class Computer {
         int[] rooks = {0,0};//white, black
         int[] knights = {0,0};//white, black
         int[] bishops = {0,0};//white, black 
+        int[] pawns = {0,0};
         for(int square = 0;square < 64;square++){
             int piece = board[square];
             if(piece <= 0){
@@ -217,6 +218,7 @@ public class Computer {
             int lookupSquare;
             switch(pieceType){
                 case 4:
+                    pawns[color == 1?0:1]++;
                     double value = BoardHelper.pieceValue.get(pieceType);
                     if(color == -1){
                         lookupSquare = (7-rank)*8 + file;
@@ -289,6 +291,8 @@ public class Computer {
             isLateGame = true;
         }
         //white king evaluation
+        int whiteEval = (queens[0]*900)+(rooks[0]*500)+(bishops[0]*330)+(knights[0]*320)+(pawns[0]);
+        int blackEval = (queens[1]*900)+(rooks[1]*500)+(bishops[1]*330)+(knights[1]*320)+(pawns[1]);
         int lookupSquare = kingPositions[0][0]*8 + kingPositions[0][1];
         if(!isLateGame){
             if(doDebugPrint)System.out.print((BoardHelper.pieceValue.get(24) + kingWeightsAbleToCastle[lookupSquare])+" it's not late game\n");
@@ -296,7 +300,13 @@ public class Computer {
         }else {
             if(doDebugPrint)System.out.print((BoardHelper.pieceValue.get(24) + kingWeightsEndgame[lookupSquare])+" it is late game\n");
             evaluation += (BoardHelper.pieceValue.get(24) + kingWeightsEndgame[lookupSquare]);
+            if(whiteEval > blackEval){
+                double kingDistance = Math.sqrt(Math.pow((kingPositions[0][0]-kingPositions[1][0]),2)+Math.pow(kingPositions[0][1]-kingPositions[1][1],2))-2;
+                evaluation += 10*(9-kingDistance);
+            }
+            
         }
+        //System.out.println();
         //black king evaluation
         lookupSquare = (7 - kingPositions[1][0])*8 + kingPositions[1][1];
         if(!isLateGame){
@@ -305,6 +315,11 @@ public class Computer {
         }else {
             if(doDebugPrint)System.out.print(-(BoardHelper.pieceValue.get(24) + kingWeightsEndgame[lookupSquare])+" it is late game\n");
             evaluation -= (BoardHelper.pieceValue.get(24) + kingWeightsEndgame[lookupSquare]);
+            if(blackEval > whiteEval){
+                double kingDistance = Math.sqrt(Math.pow((kingPositions[0][0]-kingPositions[1][0]),2)+Math.pow(kingPositions[0][1]-kingPositions[1][1],2))-2;
+                
+                evaluation -= 15*(9-kingDistance);
+            }
         }
         //bishop pair bonus
         if(bishops[0]>=2)evaluation+=BISHOP_PAIR_BONUS;

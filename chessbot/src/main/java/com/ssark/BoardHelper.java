@@ -148,10 +148,7 @@ public class BoardHelper{
 
             return newBoard;
         }
-        if((piece&28) == 4 && Math.abs(endSquare - startSquare) == 16){
-            //add phantom pawn
-            newBoard[startSquare + (8*color)] = -(4|(piece&3));
-        }
+        
         if(move.isEnPassant()){
             newBoard[endSquare - (8*color)] = 0;
         }
@@ -160,6 +157,13 @@ public class BoardHelper{
         }
         if(move.isPromotion()){
             piece = move.getPromotion() | (piece & 3);
+        }
+        for(int i = 0;i<newBoard.length;i++){
+            if(newBoard[i]<0)newBoard[i] = 0;
+        }
+        if((piece&28) == 4 && Math.abs(endSquare - startSquare) == 16){
+            //add phantom pawn
+            newBoard[startSquare + (8*color)] = -(4|(piece&3));
         }
         newBoard[startSquare] = 0;
         newBoard[endSquare] = piece;
