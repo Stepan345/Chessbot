@@ -2,38 +2,53 @@ package com.ssark;
 import java.util.ArrayList;
 import java.util.concurrent.*;
 
-import javax.management.RuntimeErrorException;
+//import javax.management.RuntimeErrorException;
 
 import java.lang.Math;
 
 
 public class Computer {
-    // class MoveThread extends Thread{
-    //     private int[] board;
-    //     private int depthLast;
-    //     private int colorToMove;
-    //     private double alpha;
-    //     private double delta;
-    //     public MoveThread(int[] board,int depthLast, int colorToMove, double alpha, double beta){
-
-    //     }
-    // }
-    public ArrayList<MoveEval> lastBestMoves = new ArrayList<MoveEval>();
+    public ArrayList<MoveEval> lastBestMoves = new ArrayList<>();
+    //public HashMap<int[], Double> previousEvaluations = new HashMap<>();
     //public int counter = 0;
+    public static int findBestMoveCount = 0;
+    public static int evaluateCount = 0;
     public double timeLimitSeconds = 5.0;
     public long startTime;
-    public static final ExecutorService executor = Executors.newFixedThreadPool(100);
-    public MoveEval findBestMove(int[] board,int depth,int colorToMove){
-        var moves = BoardHelper.findLegalMoves(board, colorToMove);
+    public static final ExecutorService executor = Executors.newWorkStealingPool();
+    public final int maxMoveThreads = 8;
+    public MoveEval findBestMove(Board board,int depth,int colorToMove){
+        //previousEvaluations.clear();
+        findBestMoveCount++;
+        var moves = board.findLegalMoves(colorToMove);
         var tasks = new ArrayList<Future<MoveEval>>();
         var bestMove = new MoveEval(colorToMove*Double.NEGATIVE_INFINITY);
-        for(Move move:moves){
-            var task = executor.submit(() -> {
-                var board1 = BoardHelper.makeMove(board, move);
-                return findBestMove(board1, depth-1, colorToMove*-1,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
-            });
-            
-            tasks.add(task);
+        var alpha = Double.NEGATIVE_INFINITY;
+        var beta = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < moves.size(); i++) {
+            Move move = moves.get(i);
+
+            if(i<maxMoveThreads){
+                var task = executor.submit(() -> {
+                    var board1 = new Board(board, move);
+                    return findBestMove(board1, depth - 1, colorToMove * -1, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY);
+                });
+                tasks.add(task);
+            }else {
+                var board1 = new Board(board, move);
+                var moveEval = findBestMove(board1, depth - 1, colorToMove * -1, alpha, beta);
+                if(colorToMove == 1){
+                    alpha = Math.max(alpha, moveEval.evaluation);
+                }else{
+                    beta = Math.min(beta, moveEval.evaluation);
+                }
+                if(beta <= alpha){
+                    break;
+                }
+                if(colorToMove == 1 && moveEval.evaluation>bestMove.evaluation)bestMove = new MoveEval(moveEval, move, moveEval.evaluation);
+                if(colorToMove == -1 && moveEval.evaluation<bestMove.evaluation)bestMove = new MoveEval(moveEval, move, moveEval.evaluation);;
+            }
+
             //System.out.println("Created new task for move "+move.getNotation(board));
         }
 
@@ -50,34 +65,42 @@ public class Computer {
                     bestMove = new MoveEval(move,moves.get(i),move.evaluation);
                 }
             }
+            //previousEvaluations.clear();
             return bestMove;
         }catch(Exception e){
             throw new RuntimeException(e);
         }
     }
-    public MoveEval findBestMove(int[] board,int depthLast, int colorToMove, double alpha, double beta){
-        int depth = depthLast;
+    public MoveEval findBestMove(Board board, int depth, int colorToMove, double alpha, double beta){
         if(this.startTime != 0 && (System.nanoTime() - this.startTime) / 1_000_000_000.0 > this.timeLimitSeconds){
             return new MoveEval(0);
         }
-        if(depthLast <= 0){
+        findBestMoveCount++;
+        if(depth <= 0){
             //if(!lastMove.isCapture() || depth < -5) 
             return new MoveEval(evaluate(board));
         }
-        ArrayList<MoveEval> bestMoves = new ArrayList<MoveEval>();
-        ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, colorToMove);
-        if(legalMoves.size() == 0){
-            long checkMap = BoardHelper.generateAttackedPositions(board, colorToMove);
-            long kingMap = 1L << BoardHelper.getKingPosition(board,colorToMove);
-            if((checkMap | kingMap) == 0)return new MoveEval(0);
-            return new MoveEval(-1_000_000*colorToMove*depthLast);
+        ArrayList<MoveEval> bestMoves = new ArrayList<>();
+        ArrayList<Move> legalMoves = board.findLegalMoves(colorToMove);
+        if(legalMoves.isEmpty()){
+            long checkMap = board.generateAttackedPositions(colorToMove);
+            long kingMap = 1L << board.getKingPosition((colorToMove == 1)?1:2);
+            if((checkMap & kingMap) == 0)return new MoveEval(0);
+            return new MoveEval(-1_000_000*colorToMove* depth);
+        }
+        int repetitions = 0;
+        for(var position:board.pastPositions){
+            if(position.equals(board.boardToFen())){
+                repetitions++;
+                if(repetitions >= 3)return new MoveEval(0);
+            }
         }
         MoveEval bestMove;
         if(colorToMove == 1){//white
             bestMove = new MoveEval(Double.NEGATIVE_INFINITY);
             for(Move move:legalMoves){
 
-                int[] newBoard = BoardHelper.makeMove(board, move);
+                Board newBoard = new Board(board, move);
                 MoveEval value;
                 if(move.isCapture() && depth == 1) value = findBestMove(newBoard, depth, -1, alpha, beta);
                 else value = findBestMove(newBoard, depth-1, -1, alpha, beta);
@@ -93,7 +116,7 @@ public class Computer {
         }else{//black
             bestMove = new MoveEval(Double.POSITIVE_INFINITY);
             for(Move move:legalMoves){
-                int[] newBoard = BoardHelper.makeMove(board, move);
+                Board newBoard = new Board(board, move);
                 MoveEval value;
                 if(move.isCapture() && depth == 1) value = findBestMove(newBoard, depth, 1, alpha, beta);
                 else value = findBestMove(newBoard, depth-1, 1, alpha, beta);
@@ -141,16 +164,6 @@ public class Computer {
         50,50,50,50,50,50,50,50,
         0, 0, 0, 0, 0, 0, 0, 0
     };
-    private static final int[] pawnWeightsLate = new int[]{
-        0, 0, 0, 0, 0, 0, 0, 0,
-        -10,-10,-10,-10,-10,-10,-10,-10,
-        -5,-5,-5,-5,-5,-5,-5,-5,
-        0,0,0,0,0,0,0,0,
-        5,5,5,5,5,5,5,5,
-        10,10,10,10,10,10,10,10,
-        15,15,15,15,15,15,15,15,
-        0, 0, 0, 0, 0, 0, 0, 0
-    };
     private static final int[] rookWeights = new int[]{
         0,0,0,0,0,0,0,0,
         -5,0,0,0,0,0,0,-5,
@@ -192,10 +205,11 @@ public class Computer {
         -60, -50, -40, -30, -30, -40, -50, -60
     };
     private static final int BISHOP_PAIR_BONUS = 50;
-    public static double evaluate(int[] board){
+    public static double evaluate(Board board){
         return evaluate(board, false);
     }
-    public static double evaluate(int[] board,boolean doDebugPrint){
+    public static double evaluate(Board board, boolean doDebugPrint){
+        evaluateCount++;
         double evaluation = 0;
         int[][] kingPositions = {{0,0},{0,0}};//white, black
         int[] queens = {0,0};//white, black
@@ -204,7 +218,7 @@ public class Computer {
         int[] bishops = {0,0};//white, black 
         int[] pawns = {0,0};
         for(int square = 0;square < 64;square++){
-            int piece = board[square];
+            int piece = board.board[square];
             if(piece <= 0){
                 if(doDebugPrint)System.out.print("0 ");
                 if(doDebugPrint && square % 8 == 7)System.out.print("\n");
@@ -219,16 +233,17 @@ public class Computer {
             switch(pieceType){
                 case 4:
                     pawns[color == 1?0:1]++;
-                    double value = BoardHelper.pieceValue.get(pieceType);
+                    double value = Board.pieceValue.get(pieceType);
                     if(color == -1){
                         lookupSquare = (7-rank)*8 + file;
-                        //double gameProgress = BoardHelper.countPieces(board)/32.0;
+                        //double gameProgress = Board.countPieces(board)/32.0;
                         
                         if(doDebugPrint)System.out.print(color * (value + pawnWeightsEarly[lookupSquare])+" ");
+
                         evaluation += color * (value + pawnWeightsEarly[lookupSquare]);
                     }else{
                         lookupSquare = square;
-                        //double gameProgress = BoardHelper.countPieces(board)/32.0;
+                        //double gameProgress = Board.countPieces(board)/32.0;
                         
                         if(doDebugPrint)System.out.print(color * (value + pawnWeightsEarly[lookupSquare])+" ");
                         evaluation += color * (value + pawnWeightsEarly[lookupSquare]);
@@ -241,8 +256,8 @@ public class Computer {
                     }else {
                         lookupSquare = square;
                     }
-                    if(doDebugPrint)System.out.print(color * (BoardHelper.pieceValue.get(pieceType) + bishopWeights[lookupSquare])+" ");
-                    evaluation += color * (BoardHelper.pieceValue.get(pieceType) + bishopWeights[lookupSquare]);
+                    if(doDebugPrint)System.out.print(color * (Board.pieceValue.get(pieceType) + bishopWeights[lookupSquare])+" ");
+                    evaluation += color * (Board.pieceValue.get(pieceType) + bishopWeights[lookupSquare]);
                     break;
                 case 12:
                     knights[color == 1?0:1]++;
@@ -251,8 +266,8 @@ public class Computer {
                     }else {
                         lookupSquare = square;
                     }
-                    if(doDebugPrint)System.out.print(color * (BoardHelper.pieceValue.get(pieceType) + knightWeights[lookupSquare])+" ");
-                    evaluation += color * (BoardHelper.pieceValue.get(pieceType) + knightWeights[lookupSquare]);
+                    if(doDebugPrint)System.out.print(color * (Board.pieceValue.get(pieceType) + knightWeights[lookupSquare])+" ");
+                    evaluation += color * (Board.pieceValue.get(pieceType) + knightWeights[lookupSquare]);
                     break;
                 case 16:
                     rooks[color == 1?0:1]++;
@@ -262,8 +277,8 @@ public class Computer {
                     }else {
                         lookupSquare = square;
                     }
-                    if(doDebugPrint)System.out.print(color * (BoardHelper.pieceValue.get(pieceType) + rookWeights[lookupSquare])+" ");
-                    evaluation += color * (BoardHelper.pieceValue.get(pieceType) + rookWeights[lookupSquare]);
+                    if(doDebugPrint)System.out.print(color * (Board.pieceValue.get(pieceType) + rookWeights[lookupSquare])+" ");
+                    evaluation += color * (Board.pieceValue.get(pieceType) + rookWeights[lookupSquare]);
                     break;
                 case 20:
                     queens[color == 1?0:1]++;
@@ -272,8 +287,8 @@ public class Computer {
                     }else {
                         lookupSquare = square;
                     }
-                    if(doDebugPrint)System.out.print(color * (BoardHelper.pieceValue.get(pieceType) + queenWeights[lookupSquare])+" ");
-                    evaluation += color * (BoardHelper.pieceValue.get(pieceType) + queenWeights[lookupSquare]);
+                    if(doDebugPrint)System.out.print(color * (Board.pieceValue.get(pieceType) + queenWeights[lookupSquare])+" ");
+                    evaluation += color * (Board.pieceValue.get(pieceType) + queenWeights[lookupSquare]);
                     break;
                 case 24:
                     if(doDebugPrint)System.out.print("K ");
@@ -295,11 +310,11 @@ public class Computer {
         int blackEval = (queens[1]*900)+(rooks[1]*500)+(bishops[1]*330)+(knights[1]*320)+(pawns[1]);
         int lookupSquare = kingPositions[0][0]*8 + kingPositions[0][1];
         if(!isLateGame){
-            if(doDebugPrint)System.out.print((BoardHelper.pieceValue.get(24) + kingWeightsAbleToCastle[lookupSquare])+" it's not late game\n");
-            evaluation += (BoardHelper.pieceValue.get(24) + kingWeightsAbleToCastle[lookupSquare]);
+            if(doDebugPrint)System.out.print((Board.pieceValue.get(24) + kingWeightsAbleToCastle[lookupSquare])+" it's not late game\n");
+            evaluation += (Board.pieceValue.get(24) + kingWeightsAbleToCastle[lookupSquare]);
         }else {
-            if(doDebugPrint)System.out.print((BoardHelper.pieceValue.get(24) + kingWeightsEndgame[lookupSquare])+" it is late game\n");
-            evaluation += (BoardHelper.pieceValue.get(24) + kingWeightsEndgame[lookupSquare]);
+            if(doDebugPrint)System.out.print((Board.pieceValue.get(24) + kingWeightsEndgame[lookupSquare])+" it is late game\n");
+            evaluation += (Board.pieceValue.get(24) + kingWeightsEndgame[lookupSquare]);
             if(whiteEval > blackEval){
                 double kingDistance = Math.sqrt(Math.pow((kingPositions[0][0]-kingPositions[1][0]),2)+Math.pow(kingPositions[0][1]-kingPositions[1][1],2))-2;
                 evaluation += 10*(9-kingDistance);
@@ -310,11 +325,11 @@ public class Computer {
         //black king evaluation
         lookupSquare = (7 - kingPositions[1][0])*8 + kingPositions[1][1];
         if(!isLateGame){
-            if(doDebugPrint)System.out.print(-(BoardHelper.pieceValue.get(24) + kingWeightsAbleToCastle[lookupSquare])+" it's not late game\n");
-            evaluation -= (BoardHelper.pieceValue.get(24) + kingWeightsAbleToCastle[lookupSquare]);
+            if(doDebugPrint)System.out.print(-(Board.pieceValue.get(24) + kingWeightsAbleToCastle[lookupSquare])+" it's not late game\n");
+            evaluation -= (Board.pieceValue.get(24) + kingWeightsAbleToCastle[lookupSquare]);
         }else {
-            if(doDebugPrint)System.out.print(-(BoardHelper.pieceValue.get(24) + kingWeightsEndgame[lookupSquare])+" it is late game\n");
-            evaluation -= (BoardHelper.pieceValue.get(24) + kingWeightsEndgame[lookupSquare]);
+            if(doDebugPrint)System.out.print(-(Board.pieceValue.get(24) + kingWeightsEndgame[lookupSquare])+" it is late game\n");
+            evaluation -= (Board.pieceValue.get(24) + kingWeightsEndgame[lookupSquare]);
             if(blackEval > whiteEval){
                 double kingDistance = Math.sqrt(Math.pow((kingPositions[0][0]-kingPositions[1][0]),2)+Math.pow(kingPositions[0][1]-kingPositions[1][1],2))-2;
                 

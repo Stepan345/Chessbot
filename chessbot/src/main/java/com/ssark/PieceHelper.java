@@ -1,5 +1,4 @@
 package com.ssark;
-
 public class PieceHelper {
     public static int getType(int piece){
         return (piece & 28);
@@ -42,7 +41,7 @@ public class PieceHelper {
     public static final int WHITE = 1;
     public static final int BLACK = -1;
     public static int getColor(int piece){
-        return ((piece & 3)==1)?1:-1;
+        return ((piece & 3)==1)?1:((piece & 3)==2)?-1:0;
     }
     public static boolean canCastle(int piece){
         return (piece & 32) == 0;

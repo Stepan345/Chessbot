@@ -1,5 +1,6 @@
 package com.ssark;
 import java.util.ArrayList;
+
 public class MoveEval {
     public Move move;
     public double evaluation;
@@ -19,9 +20,16 @@ public class MoveEval {
         this.evaluation = evaluation;
     }
     public void addMoveToLine(Move move,double evaluation){
-        this.line.add(0, move);
+        this.line.addFirst(move);
         this.evaluation = evaluation;
         this.move = move;
+    }
+    @Override
+    public String toString(){
+        if(Math.abs(evaluation) >= 1_000_000){//checkmate
+            return "M"+(line.size()+1)/2;
+        }
+        return ""+this.evaluation;
     }
 
 }

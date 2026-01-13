@@ -1,1 +1,0 @@
-4k3/1pp1n3/p4KrB/3r1p2/2P5/5R2/PP6/8 thinks that pawn can take rook for legal move

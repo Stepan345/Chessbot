@@ -20,23 +20,24 @@ import chariot.model.Event;
 import chariot.model.Event.Type;
 import chariot.model.GameStateEvent;
 
+import javax.crypto.CipherInputStream;
+
 public class Main {
     
-    public static void main(String[] args) {
-        BoardHelper.preCompMoveData();
-        //createBoard_TEST("b1c3 d7d5 e2e4 d5d4 c3d5 b8c6 f1d3 e7e5 d1e2 g8f6 d5f6 d8f6 g1f3 f8d6 c2c3 d4c3 d2c3 e8g8 c1g5 f6g6");
-        //findLegalMoves_TEST("r1bq3r/ppppkppp/2n2n2/4p1B1/2B1P3/P1P2N2/1PP2PPP/R2QK2R",99,-1);
-        //findBestMove();
-        //cpuVcpu();
+    static void main() {
+        Board.preCompMoveData();
         //playerVcpu();
-        //testEvaluate();
-        //chariotTest();
         hostGame();
-        //System.out.println(Computer.evaluate(BoardHelper.createBoard("7k/R7/8/8/3K4/8/8/8 w - - 0 1"),true));
-        //System.out.println(Computer.evaluate(BoardHelper.createBoard("7k/R7/8/4K3/8/8/8/8 b - - 0 1"),true));
+        /*
+        Board board = new Board("8/8/1p6/p6P/kpP2Q2/8/1/8 w - - 0 1");
+        var moves = board.findLegalMoves(1);
+        board.printBoard();
+        var bestMove = makeCpuMove(board,new Computer(),1,10);
+        board.printBoard();
+        */
 
     }
-    private static void hostGame(){
+    public static void hostGame(){
         String token = "";
         try (BufferedReader reader = new BufferedReader(new FileReader("token.txt"))) {
             token = reader.readLine();
@@ -49,7 +50,7 @@ public class Main {
         System.out.println(client.account().emailAddress());
         client.bot().upgradeToBotAccount();
         Stream<Event> events = client.bot().connect().stream();
-        Map<String,Integer> colors = new HashMap<String,Integer>();
+        Map<String,Integer> colors = new HashMap<>();
         System.out.println("Bot connected and listening for events...");
         events.forEach(event -> {
             System.out.println("New event: " + event.type());
@@ -59,7 +60,7 @@ public class Main {
                     colors.put(event.id(),(color == Color.white)?PieceHelper.BLACK:PieceHelper.WHITE);
                     System.out.println("Accepting challenge: " + event.id()+". Opponent color = " + color);
                     client.bot().acceptChallenge(event.id());
-                    //boards.put(event.id(),BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"));
+                    //boards.put(event.id(),Board.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"));
                     break;
                 case Type.gameStart:
                     System.out.println("Game started: " + event.id());
@@ -68,31 +69,39 @@ public class Main {
                         System.out.println("New game event: " + gameEvent.type());
                         String movesStr;
                         String[] moves;
-                        int[] board;
+                        Board board;
                         int colorToMove;
                         switch(gameEvent.type()){
                             case GameStateEvent.Type.gameFull:
                                 if(colors.containsKey(event.id())){
                                     movesStr = ((GameStateEvent.Full)gameEvent).state().moves();
                                     if(movesStr.isEmpty() && colors.get(event.id()) == PieceHelper.WHITE){
-                                        board = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+                                        board = new Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
                                         System.out.println("No moves played yet");
                                         Computer comp = new Computer();
-                                        ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, -1);
+                                        ArrayList<Move> legalMoves = board.findLegalMoves(-1);
                                         for(int i = 0;i<legalMoves.size();i++){
-                                            System.out.println((i+1)+". "+legalMoves.get(i).getNotation(board));
+                                            System.out.println((i+1)+". "+legalMoves.get(i).getNotation(board.board));
                                         }
+                                        Board.findLegalMovesCount = 0;
+                                        Board.generateAttackedPositionsCount = 0;
+                                        Computer.findBestMoveCount = 0;
+                                        Computer.evaluateCount = 0;
                                         long startTime = System.nanoTime();
                                         MoveEval bestMove = makeCpuMove(board,comp,1,10.0);
                                         long endTime = System.nanoTime();
-                                        int[] boardCopy = BoardHelper.createBoard(board);
+                                        Board boardCopy = new Board(board);
                                         for(Move move:bestMove.line){
-                                            System.out.print(move.getNotation(boardCopy)+" ");
-                                            boardCopy = BoardHelper.makeMove(boardCopy, move);
+                                            System.out.print(move.getNotation(boardCopy.board)+" ");
+                                            boardCopy.makeMove(move);
                                         }
-                                        System.out.println("Best Move: " + bestMove.move.getNotation(board)+" Eval: "+bestMove.evaluation);
+                                        System.out.println("findLegalMoves() ran "+Board.findLegalMovesCount+" times");
+                                        System.out.println("generateAttackedPositions() ran "+Board.generateAttackedPositionsCount+" times");
+                                        System.out.println("findBestMove() ran "+Computer.findBestMoveCount+" times");
+                                        System.out.println("evaluate() ran "+Computer.evaluateCount+" times");
+                                        System.out.println("Best Move: " + bestMove.move.getNotation(board.board)+" Eval: "+bestMove.evaluation);
                                         System.out.println((endTime-startTime)/1_000_000.0 + "ms");
-                                        client.bot().move(event.id(),bestMove.move.getNotation(board,true));
+                                        client.bot().move(event.id(),bestMove.move.getNotation(board.board,true));
                                     }
                                 }
                                 break;
@@ -113,33 +122,41 @@ public class Main {
                                         System.out.println("Game started without challenge event, assigning color based on player id");
                                         colors.put(event.id(),(moves.length % 2 == 0)?PieceHelper.WHITE:PieceHelper.BLACK);
                                     }
-                                    board = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+                                    board = new Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
                                     for(String move:moves){
-                                        Move moveObj = new Move(move,board);
-                                        board = BoardHelper.makeMove(board, moveObj);
+                                        Move moveObj = new Move(move,board.board);
+                                        board.makeMove(moveObj);
                                     }
                                     
                                     System.out.println("Moves so far: " + movesStr);
-                                    BoardHelper.printBoard(board);
+                                    board.printBoard();
                                     colorToMove = colors.get(event.id());
                                     if(moves.length %2 == ((colorToMove == PieceHelper.WHITE)?0:1)){//bot to move
                                         Computer comp = new Computer();
-                                        ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, -1);
+                                        ArrayList<Move> legalMoves = board.findLegalMoves( -1);
                                         for(int i = 0;i<legalMoves.size();i++){
-                                            System.out.println((i+1)+". "+legalMoves.get(i).getNotation(board));
+                                            System.out.println((i+1)+". "+legalMoves.get(i).getNotation(board.board));
                                         }
+                                        Board.findLegalMovesCount = 0;
+                                        Board.generateAttackedPositionsCount = 0;
+                                        Computer.findBestMoveCount = 0;
+                                        Computer.evaluateCount = 0;
                                         long startTime = System.nanoTime();
                                         MoveEval bestMove = makeCpuMove(board,comp,colorToMove,10.0);
                                         long endTime = System.nanoTime();
-                                        int[] boardCopy = BoardHelper.createBoard(board);
+                                        Board boardCopy = new Board(board);
                                         for(Move move:bestMove.line){
-                                            System.out.print(move.getNotation(boardCopy)+" ");
-                                            boardCopy = BoardHelper.makeMove(boardCopy, move);
+                                            System.out.print(move.getNotation(boardCopy.board)+" ");
+                                            boardCopy.makeMove( move);
                                         }
-                                        System.out.println("Best Move: " + bestMove.move.getNotation(board)+" Eval: "+bestMove.evaluation);
+                                        System.out.println("findLegalMoves() ran "+Board.findLegalMovesCount+" times");
+                                        System.out.println("generateAttackedPositions() ran "+Board.generateAttackedPositionsCount+" times");
+                                        System.out.println("findBestMove() ran "+Computer.findBestMoveCount+" times");
+                                        System.out.println("evaluate() ran "+Computer.evaluateCount+" times");
+                                        System.out.println("Best Move: " + bestMove.move.getNotation(board.board)+" Eval: "+bestMove.evaluation);
                                         System.out.println((endTime-startTime)/1_000_000.0 + "ms");
-                                        client.bot().move(event.id(),bestMove.move.getNotation(board,true));
-                                        //boards.put(event.id(),BoardHelper.makeMove(board, bestMove.move));
+                                        client.bot().move(event.id(),bestMove.move.getNotation(board.board,true));
+                                        //boards.put(event.id(),Board.makeMove(board, bestMove.move));
                                     }
                                 }
                                 break;
@@ -155,236 +172,76 @@ public class Main {
             }
         });
     }
-    private static void chariotTest(){
-        Client client = Client.basic();
-        System.out.println(client.teams().byTeamId("lichess-swiss").maybe()
-            .map(team -> "Team %s has %d members!".formatted(team.name(), team.nbMembers()))
-            .orElse("Couldn't find team!"));
-    }
-
-    private static void createBoard_TEST(){
-        boolean[] out = new boolean[3];
-        //perform test
-        int[] newBoard = BoardHelper.createBoard();
-        newBoard[0] = 5; //set the first square to a white pawn
-        int[] copyBoard = BoardHelper.createBoard(newBoard);
-        out[0] = Arrays.equals(newBoard,copyBoard); //test0
-        
-        copyBoard[0] = 6;
-        out[1] = !Arrays.equals(newBoard,copyBoard);//test1
-        
-        int[] fenBoard = BoardHelper.createBoard("8/8/8/8/8/8/8/p7 w - - 0 1");
-        out[2] = Arrays.equals(copyBoard,fenBoard);
-
-        System.out.println("createBoard test0 " + ((out[0])?"Passed":"Failed"));
-        System.out.println("createBoard test1 " + ((out[1])?"Passed":"Failed"));
-        System.out.println("createBoard test2 " + ((out[2])?"Passed":"Failed"));
-
-    }
-    private static void createBoard_TEST(String boardMoves){
-        //perform test
-        String[] moves = boardMoves.split(" ");
-        int[] board = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
-        BoardHelper.printBoard(board);
-        for(String move:moves){
-            Move moveObj = new Move(move,board);
-            System.out.println(moveObj.getNotation(board));
-            board = BoardHelper.makeMove(board, moveObj);
-            BoardHelper.printBoard(board);
-        }
-        final int[] boardCopy = BoardHelper.createBoard(board);
-        BoardHelper.findLegalMoves(board, 1).forEach((move)->{
-            System.out.println(move.getNotation(boardCopy,true));
-        });
-    }
-    private static void findLegalMoves_TEST(String fen,int expected,int color){
-        boolean out;
-        
-        int[] board = BoardHelper.createBoard(fen);
-        BoardHelper.printBoard(board);
-        //System.out.println(BoardHelper.generateAttackedPositions(board, 1));
-
-        long startTime = System.nanoTime();
-        ArrayList<Move> moves = BoardHelper.findLegalMoves(board, color);
-        long endTime = System.nanoTime();
-
-        ArrayList<Move> movesBlack = BoardHelper.findLegalMoves(board, -1);
-        
-        for(int i = 0;i<moves.size();i++){
-            System.out.println((i+1)+". "+moves.get(i).getNotation(board));
-            //System.out.println(BoardHelper.boardToFen(BoardHelper.makeMove(board, move)));
-        }
-        // for(int i = 0; i < 1000;i++){
-        //     BoardHelper.findLegalMoves(board, 1);
-        // }
-        
-        out = (moves.size() == expected);
-        System.out.println("findLegalMoves test0 " + ((out)?"Passed":"Failed"));
-        System.out.println("Found " + moves.size() + " white legal moves");
-        System.out.println("Found " + movesBlack.size() + " black legal moves");
-        System.out.println((endTime-startTime)/1_000_000.0 + "ms");
-    }
-    private static void findBestMove(){
+    public static void playerVcpu(){
         Computer comp1 = new Computer();
-        //Computer comp2 = new Computer();
-        int[] board1 = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/3P4/3X4/PPP1PPPP/RNBQKBNR");
-        BoardHelper.printBoard(board1);
-        long startTime = System.nanoTime();
-        MoveEval bestMove = comp1.findBestMove(board1, 5, -1,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
-        long endTime = System.nanoTime();
-        //System.out.println(comp1.counter);
-
-        // for (int i = 0; i < 20; i++) {
-        //     MoveEval bestMove1 = comp1.findBestMove(board1, 4, 1,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
-        //     board1 = BoardHelper.makeMove(board1, bestMove1.move);
-        //     MoveEval bestMove2 = comp2.findBestMove(board1, 4, -1,Double.NEGATIVE_INFINITY,Double.POSITIVE_INFINITY);
-        //     board1 = BoardHelper.makeMove(board1, bestMove1.move);
-        //     System.out.println(bestMove1.move.getStartSquare());
-        // }
-        System.out.println(bestMove.move.getNotation(board1));
-        //System.out.println(comp1.counter);
-        System.out.println((endTime-startTime)/1_000_000.0 + "ms");
-    }
-    private static void testEvaluate(){
-        int[] board1 = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
-        BoardHelper.printBoard(board1);
-        //double eval = Computer.evaluate(board1,true);
-        long startTime = System.nanoTime();
-        double eval = Computer.evaluate(board1);
-        long endTime = System.nanoTime();
-        System.out.println("Board Eval: " + eval);
-        System.out.println((endTime-startTime)/1_000_000.0 + "ms");
-    }
-    private static void cpuVcpu(){
-        String gameID = "1765064125572";//System.currentTimeMillis()+"";
-        Computer comp1 = new Computer();
-        //Computer comp2 = new Computer();
-        int[] board1 = BoardHelper.createBoard("8/1p1r4/p1k5/5R2/3K2P1/7P/8/8");
-        //MoveEval bestMove1 = new MoveEval(new Move(0,0),0);
-        //MoveEval bestMove2 = new MoveEval(new Move(0,0),0);
-        long startTime = 0;
-        long endTime = 0;  
-        for (int MOVE = 0; MOVE < 30; MOVE++) {
-            System.out.println(BoardHelper.boardToFen(board1));
-            BoardHelper.printBoard(board1);
-            System.out.println("White to move -----------------------------------");
-            ArrayList<Move> moves = BoardHelper.findLegalMoves(board1, -1);
-            for(int i = 0;i<moves.size();i++){
-                System.out.println((i+1)+". "+moves.get(i).getNotation(board1));
-                //System.out.println(BoardHelper.boardToFen(BoardHelper.makeMove(board, move)));
-            }
-            startTime = System.nanoTime();
-            MoveEval bestMove = makeCpuMove(board1, comp1, 1,15.0);
-            endTime = System.nanoTime();
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter("game"+gameID+".txt", true))) {
-                writer.write(bestMove.move.getNotation(board1)+" - ");
-                System.out.println("Move added to " + "game"+gameID+".txt");
-            } catch (IOException e) {
-                System.err.println("Error writing to file: " + e.getMessage());
-            }
-            int[] boardCopy = BoardHelper.createBoard(board1);
-            for(Move move:bestMove.line){
-                System.out.print(move.getNotation(boardCopy)+" ");
-                boardCopy = BoardHelper.makeMove(boardCopy, move);
-            }
-            board1 = BoardHelper.makeMove(board1, bestMove.move);
-            System.out.println("Board Eval: " + Computer.evaluate(board1));
-            System.out.println((endTime-startTime)/1_000_000.0 + "ms\n");
-            System.out.println(BoardHelper.boardToFen(board1));
-            BoardHelper.printBoard(board1);
-            System.out.println("Black to move -----------------------------------");
-
-            moves = BoardHelper.findLegalMoves(board1, -1);
-            for(int i = 0;i<moves.size();i++){
-                System.out.println((i+1)+". "+moves.get(i).getNotation(board1));
-                //System.out.println(BoardHelper.boardToFen(BoardHelper.makeMove(board, move)));
-            }
-            startTime = System.nanoTime();
-            bestMove = makeCpuMove(board1, comp1, -1,15.0);
-            endTime = System.nanoTime();
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter("game"+gameID+".txt", true))) {
-                writer.write(bestMove.move.getNotation(board1)+"\n");
-                System.out.println("Move added to " + "game"+gameID+".txt");
-            } catch (IOException e) {
-                System.err.println("Error writing to file: " + e.getMessage());
-            }
-            boardCopy = BoardHelper.createBoard(board1);
-            for(Move move:bestMove.line){
-                System.out.print(move.getNotation(boardCopy)+" ");
-                boardCopy = BoardHelper.makeMove(boardCopy, move);
-            }
-
-            
-            board1 = BoardHelper.makeMove(board1, bestMove.move);
-            //BoardHelper.printBoard(board1);
-            System.out.println("Board Eval: " + Computer.evaluate(board1));
-            System.out.println((endTime-startTime)/1_000_000.0 + "ms\n");
-        }
-    }
-    private static void playerVcpu(){
-        Computer comp1 = new Computer();
-        int[] board1 = BoardHelper.createBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+        Board board1 = new Board("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
         boolean gameOver = false;
         Scanner scanner = new Scanner(System.in);
         long startTime = 0;
         long endTime = 0;
         while(!gameOver){
-            System.out.println(BoardHelper.boardToFen(board1));
-            BoardHelper.printBoard(board1);
+            System.out.println(board1.boardToFen());
+            board1.printBoard();
             System.out.println("White to move -----------------------------------\nPick a move");
-            ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board1, 1);
+            ArrayList<Move> legalMoves = board1.findLegalMoves(1);
             for(int i = 1;i<legalMoves.size()+1;i++){
-                System.out.print(((i<10)?" ":"")+i+"."+((PieceHelper.getType(board1[legalMoves.get(i-1).getStartSquare()]) == 4)?" ":"")+legalMoves.get(i-1).getNotation(board1)+" ");
+                System.out.print(((i<10)?" ":"")+i+"."+((PieceHelper.getType(board1.board[legalMoves.get(i-1).getStartSquare()]) == 4)?" ":"")+legalMoves.get(i-1).getNotation(board1.board)+" ");
                 if(i%5==0)System.out.println();
             }
-            int from = scanner.nextInt();
-            if(from == 67) break;
-            Move playerMove = legalMoves.get(from-1);
-            System.out.println(playerMove.getNotation(board1));
-            board1 = BoardHelper.makeMove(board1, playerMove);
-            System.out.println(BoardHelper.boardToFen(board1));
-            for(int square:board1){
+            String from = scanner.nextLine();
+            //if(from == 67) break;
+            Move playerMove = legalMoves.getFirst();
+            for(Move i:legalMoves) {
+                if(i.getNotation(board1.board,true).equals(from)){
+                    playerMove = i;
+                    break;
+                }
+            }
+            System.out.println(playerMove.getNotation(board1.board));
+            board1.makeMove(playerMove);
+            System.out.println(board1.boardToFen());
+            for(int square:board1.board){
                 System.out.print(square+" ");
             }
-            BoardHelper.printBoard(board1);
+            board1.printBoard();
             System.out.println("Black to move -----------------------------------");
 
-            ArrayList<Move> moves = BoardHelper.findLegalMoves(board1, -1);
+            ArrayList<Move> moves = board1.findLegalMoves( -1);
             for(int i = 0;i<moves.size();i++){
-                System.out.println((i+1)+". "+moves.get(i).getNotation(board1));
-                //System.out.println(BoardHelper.boardToFen(BoardHelper.makeMove(board, move)));
+                System.out.println((i+1)+". "+moves.get(i).getNotation(board1.board));
+                //System.out.println(Board.boardToFen(Board.makeMove(board, move)));
             }
             startTime = System.nanoTime();
-            MoveEval bestMove = makeCpuMove(board1, comp1, -1,10.0);
+            MoveEval bestMove = makeCpuMove(board1, comp1, -1,1000.0);
             endTime = System.nanoTime();
-            int[] boardCopy = BoardHelper.createBoard(board1);
+            Board boardCopy = new Board(board1);
             for(Move move:bestMove.line){
-                System.out.print(move.getNotation(boardCopy)+" ");
-                boardCopy = BoardHelper.makeMove(boardCopy, move);
+                System.out.print(move.getNotation(boardCopy.board)+" ");
+                boardCopy.makeMove(move);
             }
 
             
-            board1 = BoardHelper.makeMove(board1, bestMove.move);
-            //BoardHelper.printBoard(board1);
+            board1.makeMove(bestMove.move);
+            //Board.printBoard(board1);
             System.out.println("Board Eval: " + Computer.evaluate(board1));
             System.out.println((endTime-startTime)/1_000_000.0 + "ms\n");
         }
         scanner.close();
     }
-    private static MoveEval makeCpuMove(int[] board, Computer comp, int color,double timeLimitSeconds){
-        //double gameProgress = 1-(BoardHelper.countPieces(board)/32.0);
+    private static MoveEval makeCpuMove(Board board, Computer comp, int color,double timeLimitSeconds){
+        //double gameProgress = 1-(Board.countPieces(board)/32.0);
         comp.timeLimitSeconds = timeLimitSeconds;
         comp.startTime = 0;
-        int depth = 4;
+        int depth = 5;
         
-        ArrayList<Move> legalMoves = BoardHelper.findLegalMoves(board, color);
+        ArrayList<Move> legalMoves = board.findLegalMoves(color);
         if(legalMoves.size() >= 20){
-            depth = 3;
+            depth = 4;
         }
         System.out.println("Searching at depth of "+depth);
         long startTime = System.nanoTime();
         MoveEval bestMove = comp.findBestMove(board, depth, color);
-        System.out.println("New best move found at depth "+(depth)+": "+bestMove.move.getNotation(board)+" Eval: "+bestMove.evaluation);
+        System.out.println("New best move found at depth "+(depth)+": "+bestMove.move.getNotation(board.board)+" Eval: "+bestMove.toString());
         depth++;
         comp.startTime = startTime;
         while(comp.startTime + timeLimitSeconds*1_000_000_000L > System.nanoTime()){
@@ -392,7 +249,7 @@ public class Main {
             MoveEval moveFound = comp.findBestMove(board, depth, color);
             if(comp.startTime + timeLimitSeconds*1_000_000_000L > System.nanoTime()){
                 bestMove = moveFound;
-                System.out.println("New best move found at depth "+(depth)+": "+bestMove.move.getNotation(board)+" Eval: "+bestMove.evaluation);
+                System.out.println("New best move found at depth "+(depth)+" in "+ (System.nanoTime()-startTime)/1e6+" ms : "+bestMove.move.getNotation(board.board)+" Eval: "+bestMove.toString());
                 depth++;
             }
         }
