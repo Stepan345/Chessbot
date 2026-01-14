@@ -1,5 +1,5 @@
 package com.ssark;
-import java.util.ArrayList;
+import java.util.*;
 import java.util.concurrent.*;
 
 //import javax.management.RuntimeErrorException;
@@ -11,12 +11,31 @@ public class Computer {
     public ArrayList<MoveEval> lastBestMoves = new ArrayList<>();
     //public HashMap<int[], Double> previousEvaluations = new HashMap<>();
     //public int counter = 0;
+    public static class IntArrayKey{
+        private final int[] array;
+        public IntArrayKey(int[] array, boolean doClone){
+            this.array = (doClone)?array.clone():array;
+        }
+
+
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof IntArrayKey that)) return false;
+            return Arrays.equals(this.array,that.array);
+        }
+
+        @Override
+        public int hashCode() {
+            return Arrays.hashCode(array);
+        }
+    }
     public static int findBestMoveCount = 0;
     public static int evaluateCount = 0;
     public double timeLimitSeconds = 5.0;
     public long startTime;
+    public Map<IntArrayKey,MoveEval> transTable = new ConcurrentHashMap<>();
     public static final ExecutorService executor = Executors.newWorkStealingPool();
-    public final int maxMoveThreads = 8;
+    public final int maxMoveThreads = 100;//8;
     public MoveEval findBestMove(Board board,int depth,int colorToMove){
         //previousEvaluations.clear();
         findBestMoveCount++;
@@ -31,12 +50,13 @@ public class Computer {
             if(i<maxMoveThreads){
                 var task = executor.submit(() -> {
                     var board1 = new Board(board, move);
-                    return findBestMove(board1, depth - 1, colorToMove * -1, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY);
+                    var cache = this.transTable;//new HashMap<IntArrayKey,MoveEval>();
+                    return findBestMove(board1, depth - 1, colorToMove * -1, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY,cache);
                 });
                 tasks.add(task);
             }else {
                 var board1 = new Board(board, move);
-                var moveEval = findBestMove(board1, depth - 1, colorToMove * -1, alpha, beta);
+                var moveEval = findBestMove(board1, depth - 1, colorToMove * -1, alpha, beta,this.transTable);
                 if(colorToMove == 1){
                     alpha = Math.max(alpha, moveEval.evaluation);
                 }else{
@@ -71,65 +91,82 @@ public class Computer {
             throw new RuntimeException(e);
         }
     }
-    public MoveEval findBestMove(Board board, int depth, int colorToMove, double alpha, double beta){
-        if(this.startTime != 0 && (System.nanoTime() - this.startTime) / 1_000_000_000.0 > this.timeLimitSeconds){
+    public MoveEval findBestMove(Board board, int depth, int colorToMove, double alpha, double beta,Map<IntArrayKey,MoveEval> transTable) {
+        if (this.startTime != 0 && (System.nanoTime() - this.startTime) / 1_000_000_000.0 > this.timeLimitSeconds) {
             return new MoveEval(0);
         }
+        var key = new IntArrayKey(board.board, false);
+        var prevEval = transTable.get(key);
+        if (prevEval != null && prevEval.depth >= depth) {
+            if (prevEval.flag == MoveEval.TransFlags.EXACT) return prevEval;
+            if (prevEval.flag == MoveEval.TransFlags.ALPHA && prevEval.evaluation >= beta) return prevEval;
+            if (prevEval.flag == MoveEval.TransFlags.BETA && prevEval.evaluation < alpha) return prevEval;
+        }
         findBestMoveCount++;
-        if(depth <= 0){
+        if (depth <= 0) {
             //if(!lastMove.isCapture() || depth < -5) 
             return new MoveEval(evaluate(board));
         }
         ArrayList<MoveEval> bestMoves = new ArrayList<>();
         ArrayList<Move> legalMoves = board.findLegalMoves(colorToMove);
-        if(legalMoves.isEmpty()){
+        if (legalMoves.isEmpty()) {
             long checkMap = board.generateAttackedPositions(colorToMove);
-            long kingMap = 1L << board.getKingPosition((colorToMove == 1)?1:2);
-            if((checkMap & kingMap) == 0)return new MoveEval(0);
-            return new MoveEval(-1_000_000*colorToMove* depth);
+            long kingMap = 1L << board.getKingPosition((colorToMove == 1) ? 1 : 2);
+            if ((checkMap & kingMap) == 0) return new MoveEval(0);
+            return new MoveEval(-1_000_000 * colorToMove * depth);
         }
         int repetitions = 0;
-        for(var position:board.pastPositions){
-            if(position.equals(board.boardToFen())){
+        for (var position : board.pastPositions) {
+            if (position.equals(board.boardToFen())) {
                 repetitions++;
-                if(repetitions >= 3)return new MoveEval(0);
+                if (repetitions >= 3) return new MoveEval(0);
             }
         }
         MoveEval bestMove;
-        if(colorToMove == 1){//white
+        if (colorToMove == 1) {//white
             bestMove = new MoveEval(Double.NEGATIVE_INFINITY);
-            for(Move move:legalMoves){
+            for (Move move : legalMoves) {
 
                 Board newBoard = new Board(board, move);
                 MoveEval value;
-                if(move.isCapture() && depth == 1) value = findBestMove(newBoard, depth, -1, alpha, beta);
-                else value = findBestMove(newBoard, depth-1, -1, alpha, beta);
+                if (move.isCapture() && depth == 1) value = findBestMove(newBoard, depth, -1, alpha, beta,transTable);
+                else value = findBestMove(newBoard, depth - 1, -1, alpha, beta,transTable);
                 bestMoves.add(new MoveEval(value, move, value.evaluation));
-                if(value.evaluation > bestMove.evaluation){
+                if (value.evaluation > bestMove.evaluation) {
+
                     bestMove = new MoveEval(value, move, value.evaluation);
                 }
                 alpha = Math.max(alpha, value/*bestMove*/.evaluation);
-                if(beta <= alpha/*+ 1e-6*/){
+                if (beta <= alpha/*+ 1e-6*/) {
                     break;
                 }
             }
-        }else{//black
+        } else {//black
             bestMove = new MoveEval(Double.POSITIVE_INFINITY);
-            for(Move move:legalMoves){
+            for (Move move : legalMoves) {
                 Board newBoard = new Board(board, move);
                 MoveEval value;
-                if(move.isCapture() && depth == 1) value = findBestMove(newBoard, depth, 1, alpha, beta);
-                else value = findBestMove(newBoard, depth-1, 1, alpha, beta);
-                
+                if (move.isCapture() && depth == 1) value = findBestMove(newBoard, depth, 1, alpha, beta,transTable);
+                else value = findBestMove(newBoard, depth - 1, 1, alpha, beta,transTable);
+
                 bestMoves.add(new MoveEval(value, move, value.evaluation));
-                if(value.evaluation < bestMove.evaluation){
+                if (value.evaluation < bestMove.evaluation) {
                     bestMove = new MoveEval(value, move, value.evaluation);
                 }
                 beta = Math.min(beta, value/*bestMove*/.evaluation);
-                if(beta <= alpha/*+ 1e-6*/){
+                if (beta <= alpha/*+ 1e-6*/) {
                     break;
                 }
             }
+        }
+        prevEval = transTable.get(key);
+        if(prevEval == null || prevEval.depth < depth){
+            if (beta > alpha)
+                transTable.put(new IntArrayKey(board.board, true), new MoveEval(bestMove, MoveEval.TransFlags.EXACT, depth));
+            else if (colorToMove == 1)
+                transTable.put(new IntArrayKey(board.board, true), new MoveEval(bestMove, MoveEval.TransFlags.ALPHA, depth));
+            else
+                transTable.put(new IntArrayKey(board.board, true), new MoveEval(bestMove, MoveEval.TransFlags.BETA, depth));
         }
         lastBestMoves = bestMoves;
         return bestMove; 

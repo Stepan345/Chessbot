@@ -378,6 +378,13 @@ public class Board{
         }
 
     }
+    public String toString(){
+        StringBuilder s = new StringBuilder();
+        for(int i : board){
+            s.append(i);
+        }
+        return s.toString();
+    }
     public String boardToFen(){
         StringBuilder fen = new StringBuilder();
         for(int rank = 7;rank >= 0;rank--){

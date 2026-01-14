@@ -28,6 +28,17 @@ public class Main {
         Board.preCompMoveData();
         //playerVcpu();
         hostGame();
+        var comp = new Computer();
+        var board = new Board("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR");
+        long time = 0L;
+        for(int i = 0;i<10;i++){
+            var startTime = System.nanoTime();
+            var move = comp.findBestMove(board,6,-1);
+            var endTime = System.nanoTime();
+            System.out.println((endTime-startTime)/1e6 + " ms");
+            time+=endTime - startTime;
+        }
+        System.out.println(time/1e7 + " ms average");
         /*
         Board board = new Board("8/8/1p6/p6P/kpP2Q2/8/1/8 w - - 0 1");
         var moves = board.findLegalMoves(1);
